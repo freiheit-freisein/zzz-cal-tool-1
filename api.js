@@ -1,5 +1,5 @@
 /**
- * Enka API データ取得モジュール (ロリポップ中継 ＆ 深層パース・判定強化版)
+ * Enka API データ取得モジュール (ロリポップ中継 ＆ 深層パース完全対応版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -25,7 +25,7 @@ const ZZZApi = {
 
         } catch (e) {
             logHistory.push(`[Error] ${e.message}`);
-            throw new Error(e.message);
+            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nロリポップサーバーとの通信エラー。proxy.php の設置状況をご確認ください。`);
         }
     },
 
@@ -96,25 +96,8 @@ const ZZZApi = {
             charList = findArrayRecursive(data);
         }
 
-        // キャラクター配列が存在しない場合
         if (!charList || charList.length === 0) {
-            const hasPlayerInfo = rootKeys.includes('PlayerInfo') || rootKeys.includes('playerInfo');
-            
-            const errorMsg = [
-                `【データ未検出エラー】`,
-                ...logHistory,
-                `----------------------------------------`,
-                hasPlayerInfo 
-                    ? `・ロリポップ経由でプレイヤーデータ(UID: ${data.uid || '不明'})の通信には成功しましたが、エージェントのステータスデータが含まれていません。`
-                    : `・レスポンス内に有効なエージェントデータが見つかりませんでした。`,
-                ``,
-                `[確認手順]`,
-                `1. ゼンレスゾーンゼロの「プロフィール」で「展示エージェント」が正しく設定されているか確認してください。`,
-                `2. プロフィール公開設定が「公開」になっているか確認してください。`,
-                `※ゲーム内で設定直後の場合、Enka Network側へ反映されるまで数分〜十分程度かかることがあります。`
-            ].join('\n');
-
-            throw new Error(errorMsg);
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nデータを受信しましたが、エージェント配列が見つかりませんでした。`);
         }
 
         logHistory.push(`[SUCCESS] ${charList.length} 件のエージェントデータを抽出完了。`);

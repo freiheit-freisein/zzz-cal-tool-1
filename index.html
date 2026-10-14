@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.4.3</title>
+    <title>ゼンゼロ ディスク最適化計算機 Ver.5.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.4.3</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">詳細エラーログ解析 ＆ モジュール分離対応</p>
+            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.5.0</span></h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">自前プロキシ連携 ＆ キャラクターカード選択対応</p>
         </header>
 
         <!-- API取得 & データ取り込みセクション -->
@@ -22,11 +22,18 @@
                 <button type="button" onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
             </div>
             <div id="json-box" style="display: none; margin-top: 10px;">
-                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください"></textarea>
+                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください" style="width:100%; height:80px;"></textarea>
                 <button type="button" onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
             </div>
+            
             <!-- 詳細ログ出力エリア -->
             <pre id="api-status" style="font-size: 0.8rem; color: var(--sub-text); margin-top: 10px; background: #181920; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">[SYSTEM READY] UIDを入力して「UID自動取得」を押してください。</pre>
+
+            <!-- 取得したキャラクターカード選択エリア -->
+            <div id="character-selector" style="display: none; margin-top: 15px; background: #1c1e24; padding: 12px; border-radius: 8px;">
+                <h3 style="font-size: 0.95rem; color: #ffaa00; margin-bottom: 10px; margin-top:0;">▼ 読み込むエージェントを選択してください</h3>
+                <div id="character-card-list" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
         </div>
 
         <div class="grid-layout">
@@ -137,7 +144,7 @@
         </div>
     </div>
 
-    <!-- 読み込み順序: api.js -> script.js -->
+    <!-- 読み込み順序固定: api.js -> script.js -->
     <script src="api.js"></script>
     <script src="script.js"></script>
 </body>

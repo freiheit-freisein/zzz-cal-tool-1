@@ -1,5 +1,5 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (キャラカード選択＆ステータス自動反映対応版)
  */
 const PRESETS = {
     claretta: { role: '鋭御', baseDef: 1100, critRate: 20, critDmg: 60, d4: 'crit_rate', d5: 'elem_bonus', d6: 'def_percent' },
@@ -7,6 +7,8 @@ const PRESETS = {
     zhu_yuan: { role: '強攻', baseAtk: 1710, critRate: 5, critDmg: 50, d4: 'crit_dmg', d5: 'elem_bonus', d6: 'atk_percent' },
     gigen: { role: '命破', baseHp: 12500, critRate: 5, critDmg: 50, d4: 'crit_rate', d5: 'hp_percent', d6: 'hp_percent' }
 };
+
+let fetchedCharacters = [];
 
 function toggleJsonInput() {
     const box = document.getElementById('json-box');
@@ -173,26 +175,86 @@ function calculateOptimal() {
     `;
 }
 
-// 取得したキャラデータから画面上のフォームへ値を自動挿入する処理
-function populateStatsFromApi(characterList) {
-    if (!characterList || characterList.length === 0) return;
-    
-    // 先頭のキャラ（メインキャラ）を取得
-    const char = characterList[0];
-    const stats = char.stats || char.fightProp || {};
+/**
+ * APIから取得したキャラクターカードの一覧描画
+ */
+function renderCharacterSelector(characters) {
+    fetchedCharacters = characters;
+    const selectorBox = document.getElementById('character-selector');
+    const cardList = document.getElementById('character-card-list');
 
-    // 攻撃・防御・HP・会心などのキーを探索してフォームに設定
-    const atk = stats.atk || stats.BASE_ATK || stats[1] || null;
-    const def = stats.def || stats.BASE_DEF || stats[3] || null;
-    const hp = stats.hp || stats.BASE_HP || stats[2] || null;
-    const cr = stats.critRate || stats.CRITICAL || stats[20] || null;
-    const cd = stats.critDmg || stats.CRITICAL_HURT || stats[22] || null;
+    if (!selectorBox || !cardList) return;
 
-    if (atk && document.getElementById('base-atk')) document.getElementById('base-atk').value = Math.round(atk);
-    if (def && document.getElementById('base-def')) document.getElementById('base-def').value = Math.round(def);
-    if (hp && document.getElementById('base-hp')) document.getElementById('base-hp').value = Math.round(hp);
-    if (cr && document.getElementById('base-cr')) document.getElementById('base-cr').value = (cr > 1 ? cr : cr * 100).toFixed(1);
-    if (cd && document.getElementById('base-cd')) document.getElementById('base-cd').value = (cd > 1 ? cd : cd * 100).toFixed(1);
+    cardList.innerHTML = '';
+
+    characters.forEach((char, index) => {
+        const charId = char.id || char.avatarId || index + 1;
+        const level = char.level || char.Level || 60;
+
+        const card = document.createElement('div');
+        card.className = 'char-card';
+        card.style.cssText = `
+            background: #252830;
+            border: 1px solid #3a3f4d;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-width: 90px;
+        `;
+        card.innerHTML = `
+            <div style="font-weight: bold; font-size: 0.9rem; color: #fff;">Agent #${charId}</div>
+            <div style="font-size: 0.75rem; color: #aaa;">Lv.${level}</div>
+        `;
+
+        card.onmouseover = () => card.style.borderColor = '#ffaa00';
+        card.onmouseout = () => {
+            if (!card.classList.contains('selected')) card.style.borderColor = '#3a3f4d';
+        };
+        card.onclick = () => selectCharacter(index);
+
+        cardList.appendChild(card);
+    });
+
+    selectorBox.style.display = 'block';
+}
+
+/**
+ * 選択されたキャラのステータスをフォームへセット
+ */
+function selectCharacter(index) {
+    const char = fetchedCharacters[index];
+    if (!char) return;
+
+    const stats = char.stats || char.fightProp || char.Properties || {};
+
+    const atk = stats.atk || stats.BASE_ATK || stats[1] || 0;
+    const def = stats.def || stats.BASE_DEF || stats[3] || 0;
+    const hp = stats.hp || stats.BASE_HP || stats[2] || 0;
+    const cr = stats.critRate || stats.CRITICAL || stats[20] || 0;
+    const cd = stats.critDmg || stats.CRITICAL_HURT || stats[22] || 0;
+
+    if (document.getElementById('base-atk') && atk) document.getElementById('base-atk').value = Math.round(atk);
+    if (document.getElementById('base-def') && def) document.getElementById('base-def').value = Math.round(def);
+    if (document.getElementById('base-hp') && hp) document.getElementById('base-hp').value = Math.round(hp);
+    if (document.getElementById('base-cr') && cr) document.getElementById('base-cr').value = (cr > 1 ? cr : cr * 100).toFixed(1);
+    if (document.getElementById('base-cd') && cd) document.getElementById('base-cd').value = (cd > 1 ? cd : cd * 100).toFixed(1);
+
+    const cards = document.querySelectorAll('#character-card-list .char-card');
+    cards.forEach((c, i) => {
+        if (i === index) {
+            c.classList.add('selected');
+            c.style.backgroundColor = '#383d4c';
+            c.style.borderColor = '#00e676';
+        } else {
+            c.classList.remove('selected');
+            c.style.backgroundColor = '#252830';
+            c.style.borderColor = '#3a3f4d';
+        }
+    });
+
+    calculateOptimal();
 }
 
 async function fetchEnkaData() {
@@ -202,7 +264,7 @@ async function fetchEnkaData() {
 
     if (!statusEl) return;
 
-    statusEl.innerText = '[通信開始] Enka APIよりデータを同期中...';
+    statusEl.innerText = '[通信開始] Lolipop Proxy 経由で同期中...';
     statusEl.style.color = '#ffaa00';
 
     try {
@@ -210,9 +272,9 @@ async function fetchEnkaData() {
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
 
-        // 抽出したステータスを画面に反映
-        populateStatsFromApi(result.characters);
-        calculateOptimal();
+        renderCharacterSelector(result.characters);
+        selectCharacter(0);
+
     } catch (err) {
         statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
@@ -231,8 +293,9 @@ function importJsonData() {
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
 
-        populateStatsFromApi(result.characters);
-        calculateOptimal();
+        renderCharacterSelector(result.characters);
+        selectCharacter(0);
+
     } catch (err) {
         statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
