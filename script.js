@@ -10,7 +10,7 @@ const PRESETS = {
 
 function toggleJsonInput() {
     const box = document.getElementById('json-box');
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 
 function applyPreset() {
@@ -174,37 +174,53 @@ function calculateOptimal() {
 }
 
 async function fetchEnkaData() {
-    const uid = document.getElementById('uid-input').value.trim();
+    const uidInput = document.getElementById('uid-input');
     const statusEl = document.getElementById('api-status');
-    
-    statusEl.innerText = '[DEBUG] 通信初期化中...';
+    const uid = uidInput ? uidInput.value.trim() : '';
+
+    if (!statusEl) return;
+
+    statusEl.innerText = '[通信開始] API接続リクエストを送信中...';
     statusEl.style.color = '#ffaa00';
 
     try {
+        if (typeof ZZZApi === 'undefined') {
+            throw new Error('[ERR_SCRIPT_ORDER] api.js が正しく読み込まれていません。HTML内の<script>順序をご確認ください。');
+        }
+
         const result = await ZZZApi.fetchByUid(uid);
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
         calculateOptimal();
     } catch (err) {
-        statusEl.innerText = err.message;
+        statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
     }
 }
 
 function importJsonData() {
     const statusEl = document.getElementById('api-status');
-    const raw = document.getElementById('json-input').value.trim();
+    const rawInput = document.getElementById('json-input');
+    const raw = rawInput ? rawInput.value.trim() : '';
+
+    if (!statusEl) return;
 
     try {
+        if (typeof ZZZApi === 'undefined') {
+            throw new Error('[ERR_SCRIPT_ORDER] api.js が正しく読み込まれていません。');
+        }
+
         const result = ZZZApi.parseJsonString(raw);
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
         calculateOptimal();
     } catch (err) {
-        statusEl.innerText = err.message;
+        statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
     }
 }
 
 // 初期化
-applyPreset();
+window.addEventListener('DOMContentLoaded', () => {
+    applyPreset();
+});

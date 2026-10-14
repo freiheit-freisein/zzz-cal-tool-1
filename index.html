@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.4.2</title>
+    <title>ゼンゼロ ディスク最適化計算機 Ver.4.3</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.4.2</span></h1>
+            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.4.3</span></h1>
             <p style="color: var(--sub-text); font-size: 0.9rem;">詳細エラーログ解析 ＆ モジュール分離対応</p>
         </header>
 
@@ -18,15 +18,15 @@
             <div class="api-controls">
                 <label for="uid-input">Enka / HoYoLAB UID:</label>
                 <input type="text" id="uid-input" placeholder="例: 1301050483" style="width: 160px;">
-                <button onclick="fetchEnkaData()">UID自動取得</button>
-                <button onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
+                <button type="button" id="btn-fetch" onclick="fetchEnkaData()">UID自動取得</button>
+                <button type="button" onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
             </div>
             <div id="json-box" style="display: none; margin-top: 10px;">
                 <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください"></textarea>
-                <button onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
+                <button type="button" onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
             </div>
             <!-- 詳細ログ出力エリア -->
-            <pre id="api-status" style="font-size: 0.8rem; color: var(--sub-text); margin-top: 10px; background: #181920; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;"></pre>
+            <pre id="api-status" style="font-size: 0.8rem; color: var(--sub-text); margin-top: 10px; background: #181920; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">[SYSTEM READY] UIDを入力して「UID自動取得」を押してください。</pre>
         </div>
 
         <div class="grid-layout">
@@ -137,7 +137,7 @@
         </div>
     </div>
 
-    <!-- api.js を先、script.js を後に読み込む -->
+    <!-- 読み込み順序: api.js -> script.js -->
     <script src="api.js"></script>
     <script src="script.js"></script>
 </body>

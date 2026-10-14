@@ -1,68 +1,48 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール (詳細デバッグログ対応)
+ * Enka / HoYoLAB API データ取得専用モジュール
  */
 const ZZZApi = {
     async fetchByUid(uid) {
         if (!uid) {
-            throw new Error('[ERR_NO_UID] UIDが指定されていません。');
+            throw new Error('[ERR_NO_UID] UIDを入力してください。');
         }
 
         const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
         const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
-        let logHistory = [`[DEBUG] Target UID: ${uid}`];
-        logHistory.push(`[DEBUG] Target API: ${targetUrl}`);
+        let logHistory = [`[DEBUG] Target UID: ${uid}`, `[DEBUG] Target API: ${targetUrl}`];
 
-        // --- 試行 1: Primary Proxy (corsproxy.io) ---
         try {
-            logHistory.push(`[TRY 1] Fetching via Primary Proxy (corsproxy.io)...`);
+            logHistory.push(`[TRY 1] Primary Proxy (corsproxy.io)...`);
             const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(4000) });
             logHistory.push(`[TRY 1 Status] HTTP ${res1.status} ${res1.statusText}`);
 
             if (res1.ok) {
                 const data = await res1.json();
-                return this.validateAndParse(data, 'Primary Proxy (corsproxy.io)', logHistory);
-            } else {
-                logHistory.push(`[TRY 1 Fail] Primary Proxy returned non-200 HTTP code.`);
+                return this.validateAndParse(data, 'Primary Proxy', logHistory);
             }
         } catch (e) {
             logHistory.push(`[TRY 1 Exception] ${e.name}: ${e.message}`);
         }
 
-        // --- 試行 2: Backup Proxy (allorigins.win) ---
         try {
-            logHistory.push(`[TRY 2] Fetching via Backup Proxy (allorigins.win)...`);
+            logHistory.push(`[TRY 2] Backup Proxy (allorigins.win)...`);
             const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(4000) });
             logHistory.push(`[TRY 2 Status] HTTP ${res2.status} ${res2.statusText}`);
 
             if (res2.ok) {
                 const wrapper = await res2.json();
-                if (!wrapper.contents) {
-                    logHistory.push(`[TRY 2 Fail] Proxy connected but 'contents' payload was empty.`);
-                } else {
+                if (wrapper.contents) {
                     const data = JSON.parse(wrapper.contents);
-                    return this.validateAndParse(data, 'Backup Proxy (allorigins.win)', logHistory);
+                    return this.validateAndParse(data, 'Backup Proxy', logHistory);
                 }
-            } else {
-                logHistory.push(`[TRY 2 Fail] Backup Proxy returned non-200 HTTP code.`);
             }
         } catch (e) {
             logHistory.push(`[TRY 2 Exception] ${e.name}: ${e.message}`);
         }
 
-        // 両方失敗した場合のエラーメッセージ構築
-        const errorDetail = [
-            `【通信・解析失敗レポート】`,
-            ...logHistory,
-            `----------------------------------------`,
-            `[推測される原因]`,
-            `1. ブラウザのCORS制限または公開プロキシサーバーの応答タイムアウト`,
-            `2. Enka API側に指定UID (${uid}) のキャッシュデータが存在しない (404/500)`,
-            `3. ゲーム「ゼンレスゾーンゼロ」内でのプロフィール/展示エージェント設定が「非公開」`
-        ].join('\n');
-
-        throw new Error(errorDetail);
+        throw new Error(`【通信失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\n[原因] プロキシの不調、またはゲーム内のプロフィール展示が非公開の可能性があります。`);
     },
 
     parseJsonString(rawJson) {
@@ -71,41 +51,22 @@ const ZZZApi = {
             const data = JSON.parse(rawJson);
             return this.validateAndParse(data, 'JSON Direct Input', logHistory);
         } catch (e) {
-            throw new Error(`[ERR_INVALID_JSON] SyntaxError: ${e.message}\n入力されたテキストが正しいJSON形式ではありません。`);
+            throw new Error(`[ERR_INVALID_JSON] SyntaxError: ${e.message}\nJSON形式が正しくありません。`);
         }
     },
 
     validateAndParse(data, sourceName, logHistory) {
-        logHistory.push(`[PARSE] Validating payload structure...`);
-
-        if (!data) {
-            throw new Error(`[ERR_NULL_PAYLOAD] レスポンスデータが空(null/undefined)です。\nLOGS:\n${logHistory.join('\n')}`);
-        }
-
-        const keys = Object.keys(data);
-        logHistory.push(`[PARSE] Detected Keys in Response: [${keys.join(', ')}]`);
+        if (!data) throw new Error(`[ERR_NULL_PAYLOAD] 空のデータが返されました。`);
 
         const charList = data.avatarInfoList || data.characters || data.avatarList;
-
         if (!charList || !Array.isArray(charList) || charList.length === 0) {
-            const missingDetail = [
-                `【データ構造不一致エラー】`,
-                ...logHistory,
-                `----------------------------------------`,
-                `[エラー詳細]`,
-                `APIからのレスポンスを受信しましたが、エージェント配列(avatarInfoList / characters)が存在しないか空配列です。`,
-                `ゲーム内の「プロフィール」->「展示エージェント」が設定されていないか、公開設定がOFFの可能性があります。`
-            ].join('\n');
-
-            throw new Error(missingDetail);
+            throw new Error(`【データ未検出】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは受信しましたが、展示エージェント情報が含まれていません。ゲーム内公開設定をご確認ください。`);
         }
 
-        logHistory.push(`[SUCCESS] Found ${charList.length} character(s) in payload.`);
-
+        logHistory.push(`[SUCCESS] ${charList.length} 件のキャラクター情報を検出しました。`);
         return {
             success: true,
             source: sourceName,
-            raw: data,
             characters: charList,
             logs: logHistory.join('\n')
         };
