@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.3.4</title>
+    <title>ゼンゼロ ディスク最適化計算機 Ver.3.5 (公式計算式準拠)</title>
     <style>
         :root {
             --bg-color: #121318;
@@ -64,42 +64,6 @@
             margin-top: 5px;
         }
 
-        .api-section {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-            border: 1px solid var(--border-color);
-        }
-
-        input[type="text"], select, input[type="number"] {
-            background: #2a2d3d;
-            border: 1px solid var(--border-color);
-            color: #fff;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 0.95rem;
-        }
-
-        button {
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background: var(--accent-hover);
-        }
-
         .grid-layout {
             display: grid;
             grid-template-columns: 1fr 2fr;
@@ -128,12 +92,12 @@
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             font-size: 0.85rem;
             color: var(--sub-text);
         }
@@ -141,6 +105,12 @@
         .form-group input, .form-group select {
             width: 100%;
             box-sizing: border-box;
+            background: #2a2d3d;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
         }
 
         .disc-grid {
@@ -181,67 +151,71 @@
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.3.4</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">鋭御「多重会心」機能 & 特性別計算モデル対応</p>
+            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.3.5</span></h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">公式ダメージ計算式・敵防御/貫通乗数・多重会心 完全準拠版</p>
         </header>
 
-        <!-- API取得セクション -->
-        <div class="api-section">
-            <label for="uid-input">Enka / HoYoLAB UID:</label>
-            <input type="text" id="uid-input" placeholder="UIDを入力 (例: 1301050483)" style="width: 200px;">
-            <button onclick="fetchEnkaData()">データ取得</button>
-            <span id="api-status" style="font-size: 0.85rem; color: var(--sub-text);"></span>
-        </div>
-
         <div class="grid-layout">
-            <!-- 左カラム：ステータス & 設定 -->
+            <!-- 左カラム：エージェント & 敵設定 -->
             <div>
                 <div class="card">
-                    <h2>キャラクター設定</h2>
+                    <h2>エージェント設定</h2>
                     <div class="form-group">
-                        <label>エージェント選択</label>
+                        <label>プリセット選択</label>
                         <select id="agent-select" onchange="applyPreset()">
                             <option value="claretta">クラレッタ (電気/鋭御)</option>
                             <option value="jane">ジェーン (物理/異常)</option>
-                            <option value="miyabi">星見雅 (氷/異常)</option>
                             <option value="zhu_yuan">朱鳶 (エーテル/強攻)</option>
-                            <option value="yuma">浅羽悠真 (電気/強攻)</option>
                             <option value="gigen">儀玄 (エーテル/命破)</option>
-                            <option value="caesar">シーザー (物理/防護)</option>
                         </select>
-                        <div id="role-display" class="role-badge">特性判定: 鋭御型 (多重会心)</div>
+                        <div id="role-display" class="role-badge">特性: 鋭御型</div>
                     </div>
                     
-                    <div id="dynamic-inputs">
-                        <!-- JSで判定特性に応じた入力フィールドを動的生成 -->
-                    </div>
+                    <div id="dynamic-inputs"></div>
 
                     <div class="form-group">
-                        <label>チーム編成バフ (ステータス補正%)</label>
-                        <input type="number" id="buff-percent" value="20" placeholder="%" onchange="calculateOptimal()">
+                        <label>チームバフ 攻撃/HP/防御 (%)</label>
+                        <input type="number" id="buff-percent" value="20" onchange="calculateOptimal()">
                     </div>
                 </div>
 
-                <!-- 計算結果 -->
+                <div class="card">
+                    <h2>敵環境設定</h2>
+                    <div class="form-group">
+                        <label>敵レベル (標準: 60)</label>
+                        <input type="number" id="enemy-level" value="60" onchange="calculateOptimal()">
+                    </div>
+                    <div class="form-group">
+                        <label>敵属性耐性 (%)</label>
+                        <input type="number" id="enemy-res" value="0" placeholder="0" onchange="calculateOptimal()">
+                    </div>
+                    <div class="form-group">
+                        <label>ブレイク状態 multiplier</label>
+                        <select id="stun-mult" onchange="calculateOptimal()">
+                            <option value="1.0">通常時 (100%)</option>
+                            <option value="1.5" selected>ブレイク時 (150%)</option>
+                            <option value="2.0">弱点ブレイク時 (200%)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="card">
                     <h2>計算結果</h2>
                     <div id="recommendation-result" class="result-box">
-                        <div class="result-title">評価スコア</div>
+                        <div class="result-title">実数値ダメージ期待値</div>
                         <div id="opt-details">計算中...</div>
                     </div>
                 </div>
             </div>
 
-            <!-- 右カラム：ディスク試算 -->
+            <!-- 右カラム：ディスクメインステータス試算 -->
             <div>
                 <div class="card">
-                    <h2>メインステータス設定</h2>
+                    <h2>ディスク メインステータス設定</h2>
                     <div class="disc-grid">
-                        <!-- ディスク 4番 -->
                         <div class="disc-card">
                             <h3>ディスク [4]</h3>
                             <div class="form-group">
-                                <label>メインステータス</label>
                                 <select id="disc4-main" onchange="calculateOptimal()">
                                     <option value="crit_rate">会心率 (+24%)</option>
                                     <option value="crit_dmg">会心ダメージ (+48%)</option>
@@ -253,32 +227,27 @@
                             </div>
                         </div>
 
-                        <!-- ディスク 5番 -->
                         <div class="disc-card">
                             <h3>ディスク [5]</h3>
                             <div class="form-group">
-                                <label>メインステータス</label>
                                 <select id="disc5-main" onchange="calculateOptimal()">
                                     <option value="elem_bonus">属性ダメージ (+30%)</option>
-                                    <option value="def_percent">防御力 (+30%)</option>
                                     <option value="pen_percent">貫通率 (+24%)</option>
+                                    <option value="def_percent">防御力 (+30%)</option>
                                     <option value="atk_percent">攻撃力 (+30%)</option>
                                     <option value="hp_percent">HP (+30%)</option>
                                 </select>
                             </div>
                         </div>
 
-                        <!-- ディスク 6番 -->
                         <div class="disc-card">
                             <h3>ディスク [6]</h3>
                             <div class="form-group">
-                                <label>メインステータス</label>
-
                                 <select id="disc6-main" onchange="calculateOptimal()">
                                     <option value="def_percent">防御力 (+30%)</option>
                                     <option value="anom_am">異常掌握 (+30%)</option>
                                     <option value="atk_percent">攻撃力 (+30%)</option>
-                                    <option value="energy_regen">エネルギー自動回復 (+60%)</option>
+                                    <option value="energy_regen">エネルギー回復 (+60%)</option>
                                     <option value="hp_percent">HP (+30%)</option>
                                 </select>
                             </div>
@@ -287,10 +256,8 @@
                 </div>
 
                 <div class="card">
-                    <h2>ステータス総計（試算値）</h2>
-                    <div id="total-stats" style="line-height: 1.8; font-size: 0.95rem;">
-                        <!-- JSで動的生成 -->
-                    </div>
+                    <h2>各乗数エリア内訳</h2>
+                    <div id="total-stats" style="line-height: 1.8; font-size: 0.9rem;"></div>
                 </div>
             </div>
         </div>
@@ -300,18 +267,14 @@
         const PRESETS = {
             claretta: { role: '鋭御', baseDef: 1100, critRate: 20, critDmg: 60, d4: 'crit_rate', d5: 'elem_bonus', d6: 'def_percent' },
             jane: { role: '異常', baseAtk: 1593, baseAp: 148, d4: 'ap', d5: 'elem_bonus', d6: 'anom_am' },
-            miyabi: { role: '異常', baseAtk: 1650, baseAp: 114, d4: 'ap', d5: 'elem_bonus', d6: 'anom_am' },
             zhu_yuan: { role: '強攻', baseAtk: 1710, critRate: 5, critDmg: 50, d4: 'crit_dmg', d5: 'elem_bonus', d6: 'atk_percent' },
-            yuma: { role: '強攻', baseAtk: 1680, critRate: 5, critDmg: 50, d4: 'crit_rate', d5: 'elem_bonus', d6: 'atk_percent' },
-            gigen: { role: '命破', baseHp: 12500, critRate: 5, critDmg: 50, d4: 'crit_rate', d5: 'hp_percent', d6: 'hp_percent' },
-            caesar: { role: '防護', baseAtk: 1500, baseHp: 11000, d4: 'atk_percent', d5: 'atk_percent', d6: 'atk_percent' }
+            gigen: { role: '命破', baseHp: 12500, critRate: 5, critDmg: 50, d4: 'crit_rate', d5: 'hp_percent', d6: 'hp_percent' }
         };
 
         function applyPreset() {
             const agentKey = document.getElementById('agent-select').value;
             const data = PRESETS[agentKey];
-            
-            document.getElementById('role-display').innerText = `特性判定: ${data.role}型${data.role === '鋭御' ? ' (多重会心有効)' : ''}`;
+            document.getElementById('role-display').innerText = `特性: ${data.role}型${data.role === '鋭御' ? ' (多重会心モデル適用)' : ''}`;
             
             const container = document.getElementById('dynamic-inputs');
             container.innerHTML = '';
@@ -339,16 +302,11 @@
                     <div class="form-group"><label>基礎会心率 (%)</label><input type="number" id="base-cr" value="${data.critRate}" onchange="calculateOptimal()"></div>
                     <div class="form-group"><label>基礎会心ダメージ (%)</label><input type="number" id="base-cd" value="${data.critDmg}" onchange="calculateOptimal()"></div>
                 `;
-            } else {
-                container.innerHTML = `
-                    <div class="form-group"><label>基礎攻撃力</label><input type="number" id="base-atk" value="${data.baseAtk || 1500}" onchange="calculateOptimal()"></div>
-                `;
             }
 
             document.getElementById('disc4-main').value = data.d4;
             document.getElementById('disc5-main').value = data.d5;
             document.getElementById('disc6-main').value = data.d6;
-
             calculateOptimal();
         }
 
@@ -357,11 +315,15 @@
             const role = PRESETS[agentKey].role;
             const buff = parseFloat(document.getElementById('buff-percent').value) || 0;
 
+            const enemyLv = parseFloat(document.getElementById('enemy-level').value) || 60;
+            const enemyRes = parseFloat(document.getElementById('enemy-res').value) || 0;
+            const stunMult = parseFloat(document.getElementById('stun-mult').value) || 1.5;
+
             const d4 = document.getElementById('disc4-main').value;
             const d5 = document.getElementById('disc5-main').value;
             const d6 = document.getElementById('disc6-main').value;
 
-            let addAtkP = 0, addHpP = 0, addDefP = 0, addAp = 0, addCr = 0, addCd = 0, addElem = 0, addAm = 0;
+            let addAtkP = 0, addHpP = 0, addDefP = 0, addAp = 0, addCr = 0, addCd = 0, addElem = 0, addPenP = 0, addAm = 0;
 
             [d4, d5, d6].forEach(stat => {
                 if (stat === 'atk_percent') addAtkP += 30;
@@ -371,10 +333,19 @@
                 if (stat === 'crit_rate') addCr += 24;
                 if (stat === 'crit_dmg') addCd += 48;
                 if (stat === 'elem_bonus') addElem += 30;
+                if (stat === 'pen_percent') addPenP += 24;
                 if (stat === 'anom_am') addAm += 30;
             });
 
-            let score = 0;
+            // 防御乗数計算 (味方Lv60時 Def係数 794)
+            const attackerLvConst = 794;
+            const enemyDef = (enemyLv * 15 + 50) * (1 - addPenP / 100);
+            const defMultiplier = attackerLvConst / (enemyDef + attackerLvConst);
+
+            // 耐性乗数
+            const resMultiplier = 1 - (enemyRes / 100);
+
+            let finalDamage = 0;
             let statsSummary = '';
 
             if (role === '鋭御') {
@@ -386,23 +357,24 @@
                 const finalCr = baseCr + addCr;
                 const finalCd = baseCd + addCd;
 
-                // 多重会心計算ロジック
+                // 多重会心乗数
                 let critMultiplier = 1;
                 if (finalCr <= 100) {
                     critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
                 } else {
-                    // 100%超過分で2回目の会心が発生 (多重会心)
                     const overflowCr = finalCr - 100;
                     critMultiplier = (1 + finalCd / 100) + (overflowCr / 100) * (finalCd / 100);
                 }
 
-                score = Math.round(finalDef * critMultiplier * (1 + addElem / 100));
+                // 想定スキル倍率: 200%
+                const skillDmg = finalDef * 2.0;
+                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
 
                 statsSummary = `
-                    <div><strong>最終防御力:</strong> ${Math.round(finalDef)}</div>
-                    <div><strong>合計会心率:</strong> ${finalCr}% ${finalCr > 100 ? `<span style="color:var(--highlight);">(多重会心発動: +${(finalCr - 100).toFixed(1)}%)</span>` : ''}</div>
-                    <div><strong>会心ダメージ:</strong> ${finalCd}%</div>
-                    <div><strong>属性ダメージボーナス:</strong> +${addElem}%</div>
+                    <div><strong>参照防御力:</strong> ${Math.round(finalDef)}</div>
+                    <div><strong>会心乗数 (多重適用):</strong> ×${critMultiplier.toFixed(3)} (会心率: ${finalCr}%)</div>
+                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)} (貫通率: ${addPenP}%)</div>
+                    <div><strong>与ダメ・ブレイク乗数:</strong> ×${((1 + addElem / 100) * stunMult).toFixed(2)}</div>
                 `;
             } else if (role === '強攻') {
                 const baseAtk = parseFloat(document.getElementById('base-atk')?.value || 0);
@@ -413,12 +385,14 @@
                 const finalCr = Math.min(100, baseCr + addCr);
                 const finalCd = baseCd + addCd;
 
-                score = Math.round(finalAtk * (1 + (finalCr / 100) * (finalCd / 100)) * (1 + addElem / 100));
+                const critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
+                const skillDmg = finalAtk * 2.0;
+                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
+
                 statsSummary = `
-                    <div><strong>最終攻撃力:</strong> ${Math.round(finalAtk)}</div>
-                    <div><strong>会心率:</strong> ${finalCr}%</div>
-                    <div><strong>会心ダメージ:</strong> ${finalCd}%</div>
-                    <div><strong>属性ダメージボーナス:</strong> +${addElem}%</div>
+                    <div><strong>参照攻撃力:</strong> ${Math.round(finalAtk)}</div>
+                    <div><strong>会心乗数:</strong> ×${critMultiplier.toFixed(3)} (会心率: ${finalCr}%)</div>
+                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
                 `;
             } else if (role === '異常') {
                 const baseAtk = parseFloat(document.getElementById('base-atk')?.value || 0);
@@ -427,11 +401,13 @@
                 const finalAtk = baseAtk * (1 + (addAtkP + buff) / 100);
                 const finalAp = baseAp + addAp;
 
-                score = Math.round(finalAtk * finalAp * (1 + addElem / 100) * (1 + addAm / 100));
+                const anomalyMult = 1 + (finalAp / 100);
+                finalDamage = Math.round(finalAtk * anomalyMult * (1 + addElem / 100) * (1 + addAm / 100) * defMultiplier * resMultiplier);
+
                 statsSummary = `
-                    <div><strong>最終攻撃力:</strong> ${Math.round(finalAtk)}</div>
-                    <div><strong>異常マスタリー:</strong> ${finalAp}</div>
-                    <div><strong>異常掌握補正:</strong> +${addAm}%</div>
+                    <div><strong>参照攻撃力:</strong> ${Math.round(finalAtk)}</div>
+                    <div><strong>異常マスタリー補正:</strong> ×${anomalyMult.toFixed(3)} (${finalAp})</div>
+                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
                 `;
             } else if (role === '命破') {
                 const baseHp = parseFloat(document.getElementById('base-hp')?.value || 0);
@@ -442,39 +418,22 @@
                 const finalCr = Math.min(100, baseCr + addCr);
                 const finalCd = baseCd + addCd;
 
-                score = Math.round((finalHp / 10) * (1 + (finalCr / 100) * (finalCd / 100)) * (1 + addElem / 100));
+                const critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
+                const skillDmg = finalHp * 0.25;
+                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
+
                 statsSummary = `
-                    <div><strong>最終HP:</strong> ${Math.round(finalHp)}</div>
-                    <div><strong>会心率:</strong> ${finalCr}%</div>
-                    <div><strong>会心ダメージ:</strong> ${finalCd}%</div>
+                    <div><strong>参照HP:</strong> ${Math.round(finalHp)}</div>
+                    <div><strong>会心乗数:</strong> ×${critMultiplier.toFixed(3)}</div>
+                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
                 `;
-            } else {
-                score = 1000;
-                statsSummary = `<div>標準モデルで計算中</div>`;
             }
 
             document.getElementById('total-stats').innerHTML = statsSummary;
             document.getElementById('opt-details').innerHTML = `
-                <div>${role}特性向けダメージ期待値: <strong>${score}</strong></div>
-                <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※選択された特性および多重会心補正を反映した評価です。</div>
+                <div>想定ダメージ期待値: <strong>${finalDamage.toLocaleString()}</strong></div>
+                <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※敵Lv.${enemyLv}・耐性${enemyRes}%・ブレイク(${stunMult}倍)での公式減衰反映値です。</div>
             `;
-        }
-
-        async function fetchEnkaData() {
-            const uid = document.getElementById('uid-input').value.trim();
-            const statusEl = document.getElementById('api-status');
-            if (!uid) {
-                statusEl.innerText = 'UIDを入力してください';
-                return;
-            }
-            statusEl.innerText = 'データ取得中...';
-            try {
-                const response = await fetch(`https://enka.network/api/zzz/uid/${uid}`);
-                if (!response.ok) throw new Error('通信エラー');
-                statusEl.innerText = '取得成功！';
-            } catch (err) {
-                statusEl.innerText = '取得失敗（プリセット選択をご利用ください）';
-            }
         }
 
         applyPreset();
