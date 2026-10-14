@@ -1,5 +1,5 @@
 /**
- * Enka API データ取得モジュール (ロリポップ自前サーバー中継版)
+ * Enka API データ取得モジュール (ロリポップ中継サーバー連携版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -9,11 +9,13 @@ const ZZZApi = {
 
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
+        // ロリポップに配置した proxy.php のフルURLを指定
+        const lolipopProxyUrl = `https://elel.hippy.jp/zzz/tool/proxy.php?uid=${encodeURIComponent(uid)}`;
+
         try {
-            logHistory.push(`[TRY] Fetching via Lolipop Server (proxy.php)...`);
+            logHistory.push(`[TRY] Fetching via Lolipop Server (elel.hippy.jp)...`);
             
-            // 同一ディレクトリ内の proxy.php へリクエスト送信
-            const res = await fetch(`proxy.php?uid=${encodeURIComponent(uid)}`);
+            const res = await fetch(lolipopProxyUrl);
             logHistory.push(`[Status] HTTP ${res.status}`);
 
             if (!res.ok) {
@@ -21,13 +23,13 @@ const ZZZApi = {
             }
 
             const data = await res.json();
-            return this.deepParse(data, 'Lolipop Server Proxy (proxy.php)', logHistory);
+            return this.deepParse(data, 'Lolipop Proxy Server', logHistory);
 
         } catch (e) {
             logHistory.push(`[Error] ${e.message}`);
-            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nproxy.php との通信に失敗しました。` +
-                            `\n・proxy.php が同じフォルダに置かれているか` +
-                            `\n・パーミッション設定（645や755など）に問題がないかご確認ください。`);
+            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nロリポップサーバーとの通信に失敗しました。` +
+                            `\n・proxy.php 内で Access-Control-Allow-Origin: * が出力されているか` +
+                            `\n・ロリポップ側のパーミッション設定（755等）をご確認ください。`);
         }
     },
 
