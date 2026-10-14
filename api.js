@@ -4,49 +4,60 @@
 const ZZZApi = {
     async fetchByUid(uid) {
         if (!uid) {
-            throw new Error('UIDが入力されていません');
+            throw new Error('UIDを入力してください');
         }
 
         const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
         const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
-        // プロキシ1で試行
+        // 1. メインプロキシで接続試行
         try {
-            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(3000) });
+            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(4000) });
             if (res1.ok) {
                 const data = await res1.json();
-                if (data && (data.avatarInfoList || data.characters)) {
-                    return { success: true, data: data, source: 'Enka API' };
-                }
+                return this.validateAndParse(data, 'Enka API (Primary)');
             }
         } catch (e) {
-            console.warn('Proxy 1 failed:', e);
+            console.warn('Primary Proxy failed:', e);
         }
 
-        // プロキシ2で試行
+        // 2. サブプロキシ（Backup）で接続試行
         try {
-            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(3000) });
+            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(4000) });
             if (res2.ok) {
                 const wrapper = await res2.json();
                 const data = JSON.parse(wrapper.contents);
-                if (data && (data.avatarInfoList || data.characters)) {
-                    return { success: true, data: data, source: 'Enka API (Backup Proxy)' };
-                }
+                return this.validateAndParse(data, 'Enka API (Backup)');
             }
         } catch (e) {
-            console.warn('Proxy 2 failed:', e);
+            console.warn('Backup Proxy failed:', e);
         }
 
-        throw new Error('API通信が遮断されたか、データが非公開に設定されています');
+        throw new Error('API通信が遮断されたか、ゲーム側でプロフィール展示が非公開に設定されています');
     },
 
     parseJsonString(rawJson) {
         try {
             const data = JSON.parse(rawJson);
-            return { success: true, data: data, source: 'JSON Input' };
+            return this.validateAndParse(data, 'JSON直貼り');
         } catch (e) {
             throw new Error('JSONのフォーマットが不正です');
         }
+    },
+
+    validateAndParse(data, sourceName) {
+        if (!data || (!data.avatarInfoList && !data.characters && !data.playerInfo)) {
+            throw new Error('有効なエージェントデータが検出されませんでした');
+        }
+
+        // キャラクター/ステータスデータの抽出処理
+        const charList = data.avatarInfoList || data.characters || [];
+        return {
+            success: true,
+            source: sourceName,
+            raw: data,
+            characters: charList
+        };
     }
 };
