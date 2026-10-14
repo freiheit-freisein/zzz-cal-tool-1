@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール (多重プロキシ＆タイムアウト強化版)
+ * Enka / HoYoLAB API データ取得専用モジュール (プロキシ拡張＆パース自動深層検索)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -10,11 +10,41 @@ const ZZZApi = {
         const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
-        // 信頼性の高い複数のCORSプロキシリスト
+        // 利用するプロキシサービスのリスト
         const proxies = [
-            { name: 'Corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}` },
-            { name: 'Allorigins (Raw)', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` },
-            { name: 'Thingproxy', url: `https://thingproxy.freeboard.io/fetch/${targetUrl}` }
+            {
+                name: 'Allorigins (Raw)',
+                fetch: async () => {
+                    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                }
+            },
+            {
+                name: 'Allorigins (JSON Wrapper)',
+                fetch: async () => {
+                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const wrapper = await res.json();
+                    return typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents;
+                }
+            },
+            {
+                name: 'Thingproxy',
+                fetch: async () => {
+                    const res = await fetch(`https://thingproxy.freeboard.io/fetch/${targetUrl}`, { signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                }
+            },
+            {
+                name: 'Corsproxy.io',
+                fetch: async () => {
+                    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(5000) });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                }
+            }
         ];
 
         for (let i = 0; i < proxies.length; i++) {
@@ -22,28 +52,14 @@ const ZZZApi = {
             logHistory.push(`[TRY ${i + 1}] Testing via ${p.name}...`);
 
             try {
-                const res = await fetch(p.url, { signal: AbortSignal.timeout(5000) });
-                logHistory.push(`[TRY ${i + 1} Status] HTTP ${res.status}`);
-
-                if (res.ok) {
-                    const contentType = res.headers.get('content-type') || '';
-                    let data;
-                    
-                    if (contentType.includes('json')) {
-                        data = await res.json();
-                    } else {
-                        const text = await res.text();
-                        data = JSON.parse(text);
-                    }
-
-                    return this.deepParse(data, p.name, logHistory);
-                }
+                const data = await p.fetch();
+                return this.deepParse(data, p.name, logHistory);
             } catch (e) {
-                logHistory.push(`[TRY ${i + 1} Error] ${e.name}: ${e.message}`);
+                logHistory.push(`[TRY ${i + 1} Failed] ${e.name}: ${e.message}`);
             }
         }
 
-        throw new Error(`【通信遮断エラー】\n${logHistory.join('\n')}\n----------------------------------------\n公開CORSプロキシがすべてダウンまたはブロックされています。WEB上の「JSON直貼り入力」機能をご利用ください。`);
+        throw new Error(`【通信・解析失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\n公開プロキシ経由での通信が遮断されています。「JSON直貼り入力」をお使いいただくか、時間をおいて再試行してください。`);
     },
 
     parseJsonString(rawJson) {
@@ -63,30 +79,35 @@ const ZZZApi = {
         logHistory.push(`[ROOT KEYS] [${rootKeys.join(', ')}]`);
 
         let charList = null;
-        const possibleKeys = ['avatarInfoList', 'characters', 'avatarList', 'avatars', 'AvatarInfoList', 'Characters'];
+        const possibleKeys = ['avatarInfoList', 'characters', 'avatarList', 'avatars', 'AvatarInfoList', 'Characters', 'AvatarList', 'Avatars'];
 
+        // 1. 直下キーの探索
         for (const key of possibleKeys) {
             if (Array.isArray(data[key]) && data[key].length > 0) {
                 charList = data[key];
-                logHistory.push(`[MATCH] Found agents in root key: "${key}"`);
+                logHistory.push(`[MATCH] Found agent array in root."${key}"`);
                 break;
             }
         }
 
+        // 2. PlayerInfo 内部の探索
         if (!charList) {
             const pInfo = data.PlayerInfo || data.playerInfo;
             if (pInfo && typeof pInfo === 'object') {
+                logHistory.push(`[SEARCH] Searching inside PlayerInfo...`);
                 for (const key of possibleKeys) {
                     if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
                         charList = pInfo[key];
-                        logHistory.push(`[MATCH] Found agents inside PlayerInfo."${key}"`);
+                        logHistory.push(`[MATCH] Found agent array inside PlayerInfo."${key}"`);
                         break;
                     }
                 }
             }
         }
 
+        // 3. 深層全自動探索（フォールバック）
         if (!charList) {
+            logHistory.push(`[SEARCH] Deep scan for array objects...`);
             for (const k in data) {
                 if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object') {
                     charList = data[k];
@@ -97,10 +118,10 @@ const ZZZApi = {
         }
 
         if (!charList) {
-            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスを受信しましたが、エージェント配列を検出できませんでした。`);
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは取得できましたが、エージェント配列(characters)が見つかりませんでした。`);
         }
 
-        logHistory.push(`[SUCCESS] ${charList.length} 件のエージェントデータを抽出完了。`);
+        logHistory.push(`[SUCCESS] Detected ${charList.length} character(s).`);
 
         return {
             success: true,
