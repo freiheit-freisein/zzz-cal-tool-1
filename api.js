@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール (プロキシ拡張＆パース自動深層検索)
+ * Enka / HoYoLAB API データ取得専用モジュール (多重プロキシ＆安定性強化版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -10,7 +10,7 @@ const ZZZApi = {
         const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
-        // 利用するプロキシサービスのリスト
+        // 信頼性の高いプロキシの順番で試行
         const proxies = [
             {
                 name: 'Allorigins (Raw)',
@@ -59,7 +59,7 @@ const ZZZApi = {
             }
         }
 
-        throw new Error(`【通信・解析失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\n公開プロキシ経由での通信が遮断されています。「JSON直貼り入力」をお使いいただくか、時間をおいて再試行してください。`);
+        throw new Error(`【通信失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\nプロキシサーバー経由の通信がブロックされています。「JSON直貼り入力」をお使いいただくか、時間をおいて再試行してください。`);
     },
 
     parseJsonString(rawJson) {
@@ -118,7 +118,7 @@ const ZZZApi = {
         }
 
         if (!charList) {
-            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは取得できましたが、エージェント配列(characters)が見つかりませんでした。`);
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは取得できましたが、エージェント配列が見つかりませんでした。`);
         }
 
         logHistory.push(`[SUCCESS] Detected ${charList.length} character(s).`);
