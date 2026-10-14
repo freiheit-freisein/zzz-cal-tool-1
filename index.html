@@ -3,194 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.3.8 (検証済み)</title>
-    <style>
-        :root {
-            --bg-color: #121318;
-            --card-bg: #1e2029;
-            --accent-color: #ff5500;
-            --accent-hover: #ff7733;
-            --text-color: #e0e0e0;
-            --sub-text: #999;
-            --border-color: #333644;
-            --highlight: #00e676;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        h1 {
-            margin: 0 0 5px 0;
-            color: #fff;
-            font-size: 1.8rem;
-        }
-
-        .version-badge {
-            display: inline-block;
-            background-color: var(--accent-color);
-            color: #fff;
-            font-size: 0.75rem;
-            font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 12px;
-            vertical-align: middle;
-            margin-left: 8px;
-        }
-
-        .role-badge {
-            display: inline-block;
-            background-color: #334155;
-            color: #38bdf8;
-            font-size: 0.8rem;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-top: 5px;
-        }
-
-        .api-section {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-            border: 1px solid var(--border-color);
-        }
-
-        input[type="text"], select, input[type="number"] {
-            background: #2a2d3d;
-            border: 1px solid var(--border-color);
-            color: #fff;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 0.95rem;
-        }
-
-        button {
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background: var(--accent-hover);
-        }
-
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .grid-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-
-        .card h2 {
-            font-size: 1.2rem;
-            margin-top: 0;
-            border-left: 4px solid var(--accent-color);
-            padding-left: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 0.85rem;
-            color: var(--sub-text);
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .disc-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px;
-        }
-
-        .disc-card {
-            background: #252836;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        .disc-card h3 {
-            margin: 0 0 10px 0;
-            font-size: 1rem;
-            color: #fff;
-        }
-
-        .result-box {
-            background: #1a271d;
-            border: 1px solid var(--highlight);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .result-title {
-            color: var(--highlight);
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-bottom: 8px;
-        }
-    </style>
+    <title>ゼンゼロ ディスク最適化計算機 Ver.4.0</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.3.8</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">二重プロキシ検証済みデータ同期 & ダメージ計算モデル完全準拠</p>
+            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.4.0</span></h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">ファイル分離構成・二重プロキシ＆JSON直貼り対応</p>
         </header>
 
-        <!-- API取得セクション -->
+        <!-- API取得 & データ取り込みセクション -->
         <div class="api-section">
-            <label for="uid-input">Enka / HoYoLAB UID:</label>
-            <input type="text" id="uid-input" placeholder="UIDを入力 (例: 1301050483)" style="width: 200px;">
-            <button onclick="fetchEnkaData()">データ取得・検証</button>
-            <span id="api-status" style="font-size: 0.85rem; color: var(--sub-text);"></span>
+            <div class="api-controls">
+                <label for="uid-input">Enka / HoYoLAB UID:</label>
+                <input type="text" id="uid-input" placeholder="例: 1301050483" style="width: 160px;">
+                <button onclick="fetchEnkaData()">UID自動取得</button>
+                <button onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
+                <span id="api-status" style="font-size: 0.85rem; color: var(--sub-text);"></span>
+            </div>
+            <div id="json-box" style="display: none; margin-top: 10px;">
+                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください"></textarea>
+                <button onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
+            </div>
         </div>
 
         <div class="grid-layout">
@@ -228,7 +63,7 @@
                         <input type="number" id="enemy-res" value="0" placeholder="0" onchange="calculateOptimal()">
                     </div>
                     <div class="form-group">
-                        <label>ブレイク状態 multiplier</label>
+                        <label>ブレイク状態倍率</label>
                         <select id="stun-mult" onchange="calculateOptimal()">
                             <option value="1.0">通常時 (100%)</option>
                             <option value="1.5" selected>ブレイク時 (150%)</option>
@@ -301,223 +136,6 @@
         </div>
     </div>
 
-    <script>
-        const PRESETS = {
-            claretta: { role: '鋭御', baseDef: 1100, critRate: 20, critDmg: 60, d4: 'crit_rate', d5: 'elem_bonus', d6: 'def_percent' },
-            jane: { role: '異常', baseAtk: 1593, baseAp: 148, d4: 'ap', d5: 'elem_bonus', d6: 'anom_am' },
-            zhu_yuan: { role: '強攻', baseAtk: 1710, critRate: 5, critDmg: 50, d4: 'crit_dmg', d5: 'elem_bonus', d6: 'atk_percent' },
-            gigen: { role: '命破', baseHp: 12500, critRate: 5, critDmg: 50, d4: 'crit_rate', d5: 'hp_percent', d6: 'hp_percent' }
-        };
-
-        function applyPreset() {
-            const agentKey = document.getElementById('agent-select').value;
-            const data = PRESETS[agentKey];
-            document.getElementById('role-display').innerText = `特性: ${data.role}型${data.role === '鋭御' ? ' (多重会心モデル適用)' : ''}`;
-            
-            const container = document.getElementById('dynamic-inputs');
-            container.innerHTML = '';
-
-            if (data.role === '鋭御') {
-                container.innerHTML = `
-                    <div class="form-group"><label>基礎防御力</label><input type="number" id="base-def" value="${data.baseDef}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心率 (%)</label><input type="number" id="base-cr" value="${data.critRate}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心ダメージ (%)</label><input type="number" id="base-cd" value="${data.critDmg}" onchange="calculateOptimal()"></div>
-                `;
-            } else if (data.role === '強攻') {
-                container.innerHTML = `
-                    <div class="form-group"><label>基礎攻撃力</label><input type="number" id="base-atk" value="${data.baseAtk}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心率 (%)</label><input type="number" id="base-cr" value="${data.critRate}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心ダメージ (%)</label><input type="number" id="base-cd" value="${data.critDmg}" onchange="calculateOptimal()"></div>
-                `;
-            } else if (data.role === '異常') {
-                container.innerHTML = `
-                    <div class="form-group"><label>基礎攻撃力</label><input type="number" id="base-atk" value="${data.baseAtk}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎異常マスタリー</label><input type="number" id="base-ap" value="${data.baseAp}" onchange="calculateOptimal()"></div>
-                `;
-            } else if (data.role === '命破') {
-                container.innerHTML = `
-                    <div class="form-group"><label>基礎HP</label><input type="number" id="base-hp" value="${data.baseHp}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心率 (%)</label><input type="number" id="base-cr" value="${data.critRate}" onchange="calculateOptimal()"></div>
-                    <div class="form-group"><label>基礎会心ダメージ (%)</label><input type="number" id="base-cd" value="${data.critDmg}" onchange="calculateOptimal()"></div>
-                `;
-            }
-
-            document.getElementById('disc4-main').value = data.d4;
-            document.getElementById('disc5-main').value = data.d5;
-            document.getElementById('disc6-main').value = data.d6;
-            calculateOptimal();
-        }
-
-        function calculateOptimal() {
-            const agentKey = document.getElementById('agent-select').value;
-            const role = PRESETS[agentKey].role;
-            const buff = parseFloat(document.getElementById('buff-percent').value) || 0;
-
-            const enemyLv = parseFloat(document.getElementById('enemy-level').value) || 60;
-            const enemyRes = parseFloat(document.getElementById('enemy-res').value) || 0;
-            const stunMult = parseFloat(document.getElementById('stun-mult').value) || 1.5;
-
-            const d4 = document.getElementById('disc4-main').value;
-            const d5 = document.getElementById('disc5-main').value;
-            const d6 = document.getElementById('disc6-main').value;
-
-            let addAtkP = 0, addHpP = 0, addDefP = 0, addAp = 0, addCr = 0, addCd = 0, addElem = 0, addPenP = 0, addAm = 0;
-
-            [d4, d5, d6].forEach(stat => {
-                if (stat === 'atk_percent') addAtkP += 30;
-                if (stat === 'hp_percent') addHpP += 30;
-                if (stat === 'def_percent') addDefP += 30;
-                if (stat === 'ap') addAp += 92;
-                if (stat === 'crit_rate') addCr += 24;
-                if (stat === 'crit_dmg') addCd += 48;
-                if (stat === 'elem_bonus') addElem += 30;
-                if (stat === 'pen_percent') addPenP += 24;
-                if (stat === 'anom_am') addAm += 30;
-            });
-
-            const attackerLvConst = 794;
-            const enemyDef = (enemyLv * 15 + 50) * (1 - addPenP / 100);
-            const defMultiplier = attackerLvConst / (enemyDef + attackerLvConst);
-            const resMultiplier = 1 - (enemyRes / 100);
-
-            let finalDamage = 0;
-            let statsSummary = '';
-
-            if (role === '鋭御') {
-                const baseDef = parseFloat(document.getElementById('base-def')?.value || 0);
-                const baseCr = parseFloat(document.getElementById('base-cr')?.value || 5);
-                const baseCd = parseFloat(document.getElementById('base-cd')?.value || 50);
-
-                const finalDef = baseDef * (1 + (addDefP + buff) / 100);
-                const finalCr = baseCr + addCr;
-                const finalCd = baseCd + addCd;
-
-                let critMultiplier = 1;
-                if (finalCr <= 100) {
-                    critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
-                } else {
-                    const overflowCr = finalCr - 100;
-                    critMultiplier = (1 + finalCd / 100) + (overflowCr / 100) * (finalCd / 100);
-                }
-
-                const skillDmg = finalDef * 2.0;
-                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
-
-                statsSummary = `
-                    <div><strong>参照防御力:</strong> ${Math.round(finalDef)}</div>
-                    <div><strong>会心乗数 (多重適用):</strong> ×${critMultiplier.toFixed(3)} (会心率: ${finalCr}%)</div>
-                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)} (貫通率: ${addPenP}%)</div>
-                    <div><strong>与ダメ・ブレイク乗数:</strong> ×${((1 + addElem / 100) * stunMult).toFixed(2)}</div>
-                `;
-            } else if (role === '強攻') {
-                const baseAtk = parseFloat(document.getElementById('base-atk')?.value || 0);
-                const baseCr = parseFloat(document.getElementById('base-cr')?.value || 5);
-                const baseCd = parseFloat(document.getElementById('base-cd')?.value || 50);
-
-                const finalAtk = baseAtk * (1 + (addAtkP + buff) / 100);
-                const finalCr = Math.min(100, baseCr + addCr);
-                const finalCd = baseCd + addCd;
-
-                const critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
-                const skillDmg = finalAtk * 2.0;
-                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
-
-                statsSummary = `
-                    <div><strong>参照攻撃力:</strong> ${Math.round(finalAtk)}</div>
-                    <div><strong>会心乗数:</strong> ×${critMultiplier.toFixed(3)} (会心率: ${finalCr}%)</div>
-                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
-                `;
-            } else if (role === '異常') {
-                const baseAtk = parseFloat(document.getElementById('base-atk')?.value || 0);
-                const baseAp = parseFloat(document.getElementById('base-ap')?.value || 0);
-
-                const finalAtk = baseAtk * (1 + (addAtkP + buff) / 100);
-                const finalAp = baseAp + addAp;
-
-                const anomalyMult = 1 + (finalAp / 100);
-                finalDamage = Math.round(finalAtk * anomalyMult * (1 + addElem / 100) * (1 + addAm / 100) * defMultiplier * resMultiplier);
-
-                statsSummary = `
-                    <div><strong>参照攻撃力:</strong> ${Math.round(finalAtk)}</div>
-                    <div><strong>異常マスタリー補正:</strong> ×${anomalyMult.toFixed(3)} (${finalAp})</div>
-                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
-                `;
-            } else if (role === '命破') {
-                const baseHp = parseFloat(document.getElementById('base-hp')?.value || 0);
-                const baseCr = parseFloat(document.getElementById('base-cr')?.value || 5);
-                const baseCd = parseFloat(document.getElementById('base-cd')?.value || 50);
-
-                const finalHp = baseHp * (1 + (addHpP + buff) / 100);
-                const finalCr = Math.min(100, baseCr + addCr);
-                const finalCd = baseCd + addCd;
-
-                const critMultiplier = 1 + (finalCr / 100) * (finalCd / 100);
-                const skillDmg = finalHp * 0.25;
-                finalDamage = Math.round(skillDmg * critMultiplier * (1 + addElem / 100) * defMultiplier * resMultiplier * stunMult);
-
-                statsSummary = `
-                    <div><strong>参照HP:</strong> ${Math.round(finalHp)}</div>
-                    <div><strong>会心乗数:</strong> ×${critMultiplier.toFixed(3)}</div>
-                    <div><strong>防御減衰乗数:</strong> ×${defMultiplier.toFixed(3)}</div>
-                `;
-            }
-
-            document.getElementById('total-stats').innerHTML = statsSummary;
-            document.getElementById('opt-details').innerHTML = `
-                <div>想定ダメージ期待値: <strong>${finalDamage.toLocaleString()}</strong></div>
-                <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※敵Lv.${enemyLv}・耐性${enemyRes}%・ブレイク(${stunMult}倍)での公式減衰反映値です。</div>
-            `;
-        }
-
-        async function fetchEnkaData() {
-            const uid = document.getElementById('uid-input').value.trim();
-            const statusEl = document.getElementById('api-status');
-            
-            if (!uid) {
-                statusEl.innerText = 'UIDを入力してください';
-                statusEl.style.color = '#ff5555';
-                return;
-            }
-
-            statusEl.innerText = 'データ取得・検証中...';
-            statusEl.style.color = '#ffaa00';
-
-            const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
-            const primaryProxy = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-            const fallbackProxy = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
-            try {
-                let response = await fetch(primaryProxy).catch(() => null);
-                let data = null;
-
-                if (response && response.ok) {
-                    data = await response.json();
-                } else {
-                    // フォールバックプロキシで再試行
-                    response = await fetch(fallbackProxy);
-                    if (response.ok) {
-                        const wrapper = await response.json();
-                        data = JSON.parse(wrapper.contents);
-                    }
-                }
-
-                if (!data || (!data.avatarInfoList && !data.characters)) {
-                    statusEl.innerText = 'データ未検出（ゲーム内のプロフィール展示・公開設定をご確認ください）';
-                    statusEl.style.color = '#ff5555';
-                    return;
-                }
-
-                statusEl.innerText = 'データ検証成功！反映を完了しました。';
-                statusEl.style.color = '#00e676';
-
-            } catch (err) {
-                console.error('API Error:', err);
-                statusEl.innerText = '通信ブロックエラー（手動プリセットをご利用ください）';
-                statusEl.style.color = '#ff5555';
-            }
-        }
-
-        applyPreset();
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
