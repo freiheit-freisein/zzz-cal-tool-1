@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール
+ * Enka / HoYoLAB API データ取得専用モジュール (自動構造解析・柔軟パース対応版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -11,63 +11,89 @@ const ZZZApi = {
         const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
-        let logHistory = [`[DEBUG] Target UID: ${uid}`, `[DEBUG] Target API: ${targetUrl}`];
+        let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
+        // --- Proxy 1 試行 ---
         try {
-            logHistory.push(`[TRY 1] Primary Proxy (corsproxy.io)...`);
-            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(4000) });
-            logHistory.push(`[TRY 1 Status] HTTP ${res1.status} ${res1.statusText}`);
+            logHistory.push(`[TRY 1] corsproxy.io...`);
+            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(5000) });
+            logHistory.push(`[TRY 1 Status] HTTP ${res1.status}`);
 
             if (res1.ok) {
                 const data = await res1.json();
-                return this.validateAndParse(data, 'Primary Proxy', logHistory);
+                return this.smartParse(data, 'Primary Proxy (corsproxy)', logHistory);
             }
         } catch (e) {
-            logHistory.push(`[TRY 1 Exception] ${e.name}: ${e.message}`);
+            logHistory.push(`[TRY 1 Error] ${e.message}`);
         }
 
+        // --- Proxy 2 試行 ---
         try {
-            logHistory.push(`[TRY 2] Backup Proxy (allorigins.win)...`);
-            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(4000) });
-            logHistory.push(`[TRY 2 Status] HTTP ${res2.status} ${res2.statusText}`);
+            logHistory.push(`[TRY 2] allorigins.win...`);
+            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(5000) });
+            logHistory.push(`[TRY 2 Status] HTTP ${res2.status}`);
 
             if (res2.ok) {
                 const wrapper = await res2.json();
-                if (wrapper.contents) {
-                    const data = JSON.parse(wrapper.contents);
-                    return this.validateAndParse(data, 'Backup Proxy', logHistory);
-                }
+                const data = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents;
+                return this.smartParse(data, 'Backup Proxy (allorigins)', logHistory);
             }
         } catch (e) {
-            logHistory.push(`[TRY 2 Exception] ${e.name}: ${e.message}`);
+            logHistory.push(`[TRY 2 Error] ${e.message}`);
         }
 
-        throw new Error(`【通信失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\n[原因] プロキシの不調、またはゲーム内のプロフィール展示が非公開の可能性があります。`);
+        throw new Error(`【通信失敗】\n${logHistory.join('\n')}`);
     },
 
     parseJsonString(rawJson) {
-        let logHistory = [`[DEBUG] Manual JSON Input Parsing...`];
+        let logHistory = [`[DEBUG] Manual JSON Input...`];
         try {
             const data = JSON.parse(rawJson);
-            return this.validateAndParse(data, 'JSON Direct Input', logHistory);
+            return this.smartParse(data, 'JSON Direct Input', logHistory);
         } catch (e) {
-            throw new Error(`[ERR_INVALID_JSON] SyntaxError: ${e.message}\nJSON形式が正しくありません。`);
+            throw new Error(`[ERR_INVALID_JSON] ${e.message}`);
         }
     },
 
-    validateAndParse(data, sourceName, logHistory) {
-        if (!data) throw new Error(`[ERR_NULL_PAYLOAD] 空のデータが返されました。`);
+    // データの階層を自動探索してキャラクター配列を取り出す関数
+    smartParse(data, sourceName, logHistory) {
+        if (!data) throw new Error('[ERR_NULL_PAYLOAD] レスポンスが空です。');
 
-        const charList = data.avatarInfoList || data.characters || data.avatarList;
-        if (!charList || !Array.isArray(charList) || charList.length === 0) {
-            throw new Error(`【データ未検出】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは受信しましたが、展示エージェント情報が含まれていません。ゲーム内公開設定をご確認ください。`);
+        logHistory.push(`[ROOT KEYS] [${Object.keys(data).join(', ')}]`);
+
+        // 可能性のあるキー候補を片っ端から探索
+        let characters = null;
+
+        if (Array.isArray(data.avatarInfoList)) characters = data.avatarInfoList;
+        else if (Array.isArray(data.characters)) characters = data.characters;
+        else if (Array.isArray(data.avatarList)) characters = data.avatarList;
+        else if (Array.isArray(data.avatars)) characters = data.avatars;
+        else if (data.playerInfo && Array.isArray(data.playerInfo.characters)) characters = data.playerInfo.characters;
+
+        // それでも見つからない場合、オブジェクト内部の最初の配列を探索
+        if (!characters) {
+            for (const key in data) {
+                if (Array.isArray(data[key]) && data[key].length > 0) {
+                    characters = data[key];
+                    logHistory.push(`[AUTO DETECT] Character array found in key: "${key}"`);
+                    break;
+                }
+            }
         }
 
-        logHistory.push(`[SUCCESS] ${charList.length} 件のキャラクター情報を検出しました。`);
+        if (!characters || characters.length === 0) {
+            // 解析不能時の生データ構造出力
+            const debugPayload = JSON.stringify(data, null, 2).substring(0, 300);
+            throw new Error(`【パースエラー】データ構造の読み込みに失敗しました。\nAPI Response Preview:\n${debugPayload}`);
+        }
+
+        logHistory.push(`[SUCCESS] Detected ${characters.length} character(s).`);
+
         return {
             success: true,
             source: sourceName,
-            characters: charList,
+            characters: characters,
+            raw: data,
             logs: logHistory.join('\n')
         };
     }

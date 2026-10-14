@@ -173,6 +173,28 @@ function calculateOptimal() {
     `;
 }
 
+// 取得したキャラデータから画面上のフォームへ値を自動挿入する処理
+function populateStatsFromApi(characterList) {
+    if (!characterList || characterList.length === 0) return;
+    
+    // 先頭のキャラ（メインキャラ）を取得
+    const char = characterList[0];
+    const stats = char.stats || char.fightProp || {};
+
+    // 攻撃・防御・HP・会心などのキーを探索してフォームに設定
+    const atk = stats.atk || stats.BASE_ATK || stats[1] || null;
+    const def = stats.def || stats.BASE_DEF || stats[3] || null;
+    const hp = stats.hp || stats.BASE_HP || stats[2] || null;
+    const cr = stats.critRate || stats.CRITICAL || stats[20] || null;
+    const cd = stats.critDmg || stats.CRITICAL_HURT || stats[22] || null;
+
+    if (atk && document.getElementById('base-atk')) document.getElementById('base-atk').value = Math.round(atk);
+    if (def && document.getElementById('base-def')) document.getElementById('base-def').value = Math.round(def);
+    if (hp && document.getElementById('base-hp')) document.getElementById('base-hp').value = Math.round(hp);
+    if (cr && document.getElementById('base-cr')) document.getElementById('base-cr').value = (cr > 1 ? cr : cr * 100).toFixed(1);
+    if (cd && document.getElementById('base-cd')) document.getElementById('base-cd').value = (cd > 1 ? cd : cd * 100).toFixed(1);
+}
+
 async function fetchEnkaData() {
     const uidInput = document.getElementById('uid-input');
     const statusEl = document.getElementById('api-status');
@@ -180,17 +202,16 @@ async function fetchEnkaData() {
 
     if (!statusEl) return;
 
-    statusEl.innerText = '[通信開始] API接続リクエストを送信中...';
+    statusEl.innerText = '[通信開始] Enka APIよりデータを同期中...';
     statusEl.style.color = '#ffaa00';
 
     try {
-        if (typeof ZZZApi === 'undefined') {
-            throw new Error('[ERR_SCRIPT_ORDER] api.js が正しく読み込まれていません。HTML内の<script>順序をご確認ください。');
-        }
-
         const result = await ZZZApi.fetchByUid(uid);
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
+
+        // 抽出したステータスを画面に反映
+        populateStatsFromApi(result.characters);
         calculateOptimal();
     } catch (err) {
         statusEl.innerText = err.message || err;
@@ -206,13 +227,11 @@ function importJsonData() {
     if (!statusEl) return;
 
     try {
-        if (typeof ZZZApi === 'undefined') {
-            throw new Error('[ERR_SCRIPT_ORDER] api.js が正しく読み込まれていません。');
-        }
-
         const result = ZZZApi.parseJsonString(raw);
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
+
+        populateStatsFromApi(result.characters);
         calculateOptimal();
     } catch (err) {
         statusEl.innerText = err.message || err;
