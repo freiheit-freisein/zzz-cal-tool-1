@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール（詳細デバッグログ機能付き）
+ * Enka / HoYoLAB API データ取得専用モジュール (詳細デバッグログ対応)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -51,14 +51,14 @@ const ZZZApi = {
             logHistory.push(`[TRY 2 Exception] ${e.name}: ${e.message}`);
         }
 
-        // --- 両方失敗した場合の詳細ログ出力 ---
+        // 両方失敗した場合のエラーメッセージ構築
         const errorDetail = [
             `【通信・解析失敗レポート】`,
             ...logHistory,
             `----------------------------------------`,
-            `[推測される発生原因]`,
-            `1. ブラウザのCORS制限または公開プロキシのブロック (corsproxy/allorigins のダウン)`,
-            `2. Enka API側が該当UID (${uid}) のキャッシュを未保持、または404エラー応答`,
+            `[推測される原因]`,
+            `1. ブラウザのCORS制限または公開プロキシサーバーの応答タイムアウト`,
+            `2. Enka API側に指定UID (${uid}) のキャッシュデータが存在しない (404/500)`,
             `3. ゲーム「ゼンレスゾーンゼロ」内でのプロフィール/展示エージェント設定が「非公開」`
         ].join('\n');
 
@@ -82,7 +82,6 @@ const ZZZApi = {
             throw new Error(`[ERR_NULL_PAYLOAD] レスポンスデータが空(null/undefined)です。\nLOGS:\n${logHistory.join('\n')}`);
         }
 
-        // Enka APIの主要キー存在チェック
         const keys = Object.keys(data);
         logHistory.push(`[PARSE] Detected Keys in Response: [${keys.join(', ')}]`);
 
