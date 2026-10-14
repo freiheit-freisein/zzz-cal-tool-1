@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール (多重プロキシ＆安定性強化版)
+ * Enka API データ取得モジュール (ロリポップ自前サーバー中継版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -7,59 +7,28 @@ const ZZZApi = {
             throw new Error('[ERR_NO_UID] UIDを入力してください。');
         }
 
-        const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
-        // 信頼性の高いプロキシの順番で試行
-        const proxies = [
-            {
-                name: 'Allorigins (Raw)',
-                fetch: async () => {
-                    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(8000) });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return await res.json();
-                }
-            },
-            {
-                name: 'Allorigins (JSON Wrapper)',
-                fetch: async () => {
-                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(8000) });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const wrapper = await res.json();
-                    return typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents;
-                }
-            },
-            {
-                name: 'Thingproxy',
-                fetch: async () => {
-                    const res = await fetch(`https://thingproxy.freeboard.io/fetch/${targetUrl}`, { signal: AbortSignal.timeout(8000) });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return await res.json();
-                }
-            },
-            {
-                name: 'Corsproxy.io',
-                fetch: async () => {
-                    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(5000) });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return await res.json();
-                }
-            }
-        ];
+        try {
+            logHistory.push(`[TRY] Fetching via Lolipop Server (proxy.php)...`);
+            
+            // 同一ディレクトリ内の proxy.php へリクエスト送信
+            const res = await fetch(`proxy.php?uid=${encodeURIComponent(uid)}`);
+            logHistory.push(`[Status] HTTP ${res.status}`);
 
-        for (let i = 0; i < proxies.length; i++) {
-            const p = proxies[i];
-            logHistory.push(`[TRY ${i + 1}] Testing via ${p.name}...`);
-
-            try {
-                const data = await p.fetch();
-                return this.deepParse(data, p.name, logHistory);
-            } catch (e) {
-                logHistory.push(`[TRY ${i + 1} Failed] ${e.name}: ${e.message}`);
+            if (!res.ok) {
+                throw new Error(`HTTP Error ${res.status}`);
             }
+
+            const data = await res.json();
+            return this.deepParse(data, 'Lolipop Server Proxy (proxy.php)', logHistory);
+
+        } catch (e) {
+            logHistory.push(`[Error] ${e.message}`);
+            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nproxy.php との通信に失敗しました。` +
+                            `\n・proxy.php が同じフォルダに置かれているか` +
+                            `\n・パーミッション設定（645や755など）に問題がないかご確認ください。`);
         }
-
-        throw new Error(`【通信失敗レポート】\n${logHistory.join('\n')}\n----------------------------------------\nプロキシサーバー経由の通信がブロックされています。「JSON直貼り入力」をお使いいただくか、時間をおいて再試行してください。`);
     },
 
     parseJsonString(rawJson) {
@@ -79,35 +48,33 @@ const ZZZApi = {
         logHistory.push(`[ROOT KEYS] [${rootKeys.join(', ')}]`);
 
         let charList = null;
-        const possibleKeys = ['avatarInfoList', 'characters', 'avatarList', 'avatars', 'AvatarInfoList', 'Characters', 'AvatarList', 'Avatars'];
+        const possibleKeys = ['avatarInfoList', 'characters', 'avatarList', 'avatars', 'AvatarInfoList', 'Characters'];
 
-        // 1. 直下キーの探索
+        // 1. 直下キーの検索
         for (const key of possibleKeys) {
             if (Array.isArray(data[key]) && data[key].length > 0) {
                 charList = data[key];
-                logHistory.push(`[MATCH] Found agent array in root."${key}"`);
+                logHistory.push(`[MATCH] Found agents in root key: "${key}"`);
                 break;
             }
         }
 
-        // 2. PlayerInfo 内部の探索
+        // 2. PlayerInfo 内部の検索
         if (!charList) {
             const pInfo = data.PlayerInfo || data.playerInfo;
             if (pInfo && typeof pInfo === 'object') {
-                logHistory.push(`[SEARCH] Searching inside PlayerInfo...`);
                 for (const key of possibleKeys) {
                     if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
                         charList = pInfo[key];
-                        logHistory.push(`[MATCH] Found agent array inside PlayerInfo."${key}"`);
+                        logHistory.push(`[MATCH] Found agents inside PlayerInfo."${key}"`);
                         break;
                     }
                 }
             }
         }
 
-        // 3. 深層全自動探索（フォールバック）
+        // 3. 自動深層検索
         if (!charList) {
-            logHistory.push(`[SEARCH] Deep scan for array objects...`);
             for (const k in data) {
                 if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object') {
                     charList = data[k];
@@ -118,10 +85,10 @@ const ZZZApi = {
         }
 
         if (!charList) {
-            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nレスポンスは取得できましたが、エージェント配列が見つかりませんでした。`);
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nデータを受信しましたがエージェント配列が見つかりませんでした。`);
         }
 
-        logHistory.push(`[SUCCESS] Detected ${charList.length} character(s).`);
+        logHistory.push(`[SUCCESS] ${charList.length} 件のエージェントデータを抽出完了。`);
 
         return {
             success: true,
