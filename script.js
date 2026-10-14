@@ -1,3 +1,6 @@
+/**
+ * ゼンゼロ ダメージ計算＆UI制御モジュール
+ */
 const PRESETS = {
     claretta: { role: '鋭御', baseDef: 1100, critRate: 20, critDmg: 60, d4: 'crit_rate', d5: 'elem_bonus', d6: 'def_percent' },
     jane: { role: '異常', baseAtk: 1593, baseAp: 148, d4: 'ap', d5: 'elem_bonus', d6: 'anom_am' },
@@ -170,71 +173,40 @@ function calculateOptimal() {
     `;
 }
 
+// データ取得ボタン用ハンドラー (api.js を呼び出し)
 async function fetchEnkaData() {
     const uid = document.getElementById('uid-input').value.trim();
     const statusEl = document.getElementById('api-status');
     
-    if (!uid) {
-        statusEl.innerText = 'UIDを入力してください';
-        statusEl.style.color = '#ff5555';
-        return;
-    }
-
     statusEl.innerText = 'データ通信中...';
     statusEl.style.color = '#ffaa00';
 
-    const targetUrl = `https://enka.network/api/zzz/uid/${uid}`;
-    const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
     try {
-        let response = await fetch(proxy1, { signal: AbortSignal.timeout(3000) }).catch(() => null);
-        let data = null;
-
-        if (response && response.ok) {
-            data = await response.json();
-        } else {
-            response = await fetch(proxy2, { signal: AbortSignal.timeout(3000) }).catch(() => null);
-            if (response && response.ok) {
-                const wrapper = await response.json();
-                data = JSON.parse(wrapper.contents);
-            }
-        }
-
-        if (data && (data.avatarInfoList || data.characters)) {
-            statusEl.innerText = `UID: ${uid} のデータを取得・同期しました！`;
-            statusEl.style.color = '#00e676';
-            calculateOptimal();
-            return;
-        }
-        
-        throw new Error('APIブロックまたはデータ非公開');
-
-    } catch (err) {
-        // 通信遮断時の安全フォールバック：代替同期処理を発動
-        statusEl.innerText = `UID: ${uid} の安全同期データを適用しました (フォールバック完了)`;
-        statusEl.style.color = '#00e676';
-        
-        // クラレッタのステータス例を自動入力して試算
-        document.getElementById('agent-select').value = 'claretta';
-        applyPreset();
-    }
-}
-
-function importJsonData() {
-    const statusEl = document.getElementById('api-status');
-    try {
-        const raw = document.getElementById('json-input').value.trim();
-        if (!raw) return;
-        const data = JSON.parse(raw);
-        statusEl.innerText = 'JSONデータの読み込みに成功しました！';
+        const result = await ZZZApi.fetchByUid(uid);
+        statusEl.innerText = `[${result.source}] 同期成功！`;
         statusEl.style.color = '#00e676';
         calculateOptimal();
-    } catch (e) {
-        statusEl.innerText = 'JSONの形式が不正です';
+    } catch (err) {
+        statusEl.innerText = `${err.message}（手動プリセットまたはJSON入力をご利用ください）`;
         statusEl.style.color = '#ff5555';
     }
 }
 
-// 初期実行
+// JSON直貼りインポート用ハンドラー (api.js を呼び出し)
+function importJsonData() {
+    const statusEl = document.getElementById('api-status');
+    const raw = document.getElementById('json-input').value.trim();
+
+    try {
+        const result = ZZZApi.parseJsonString(raw);
+        statusEl.innerText = 'JSONデータの解析・適用に成功しました！';
+        statusEl.style.color = '#00e676';
+        calculateOptimal();
+    } catch (err) {
+        statusEl.innerText = err.message;
+        statusEl.style.color = '#ff5555';
+    }
+}
+
+// 初期化
 applyPreset();
