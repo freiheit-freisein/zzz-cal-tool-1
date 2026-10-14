@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.5.0</title>
+    <title>ゼンゼロ ディスク最適化計算機 Ver.5.2</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.5.0</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">自前プロキシ連携 ＆ キャラクターカード選択対応</p>
+            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.5.2</span></h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">自前プロキシ連携 ＆ JSONキャッシュ・出力対応</p>
         </header>
 
         <!-- API取得 & データ取り込みセクション -->
@@ -20,9 +20,10 @@
                 <input type="text" id="uid-input" placeholder="例: 1301050483" style="width: 160px;">
                 <button type="button" id="btn-fetch" onclick="fetchEnkaData()">UID自動取得</button>
                 <button type="button" onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
+                <button type="button" onclick="exportCachedJson()" style="background:#2a52be;" title="キャッシュされている生のJSONテキストを表示します">キャッシュJSON出力</button>
             </div>
             <div id="json-box" style="display: none; margin-top: 10px;">
-                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください" style="width:100%; height:80px;"></textarea>
+                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けるか、[キャッシュJSON出力]で読み込めます" style="width:100%; height:120px;"></textarea>
                 <button type="button" onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
             </div>
             
@@ -144,7 +145,7 @@
         </div>
     </div>
 
-    <!-- 読み込み順序固定: api.js -> script.js -->
+    <!-- 読み込み順序: api.js -> script.js -->
     <script src="api.js"></script>
     <script src="script.js"></script>
 </body>
