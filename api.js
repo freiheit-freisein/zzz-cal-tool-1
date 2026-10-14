@@ -1,5 +1,5 @@
 /**
- * Enka / HoYoLAB API データ取得専用モジュール (自動構造解析・柔軟パース対応版)
+ * Enka / HoYoLAB API データ取得専用モジュール (Enka ZZZ 構造完全準拠版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -13,86 +13,111 @@ const ZZZApi = {
 
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
 
-        // --- Proxy 1 試行 ---
+        // --- Proxy 1 (corsproxy.io) 試行 ---
         try {
-            logHistory.push(`[TRY 1] corsproxy.io...`);
-            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(5000) });
+            logHistory.push(`[TRY 1] Primary Proxy (corsproxy.io)...`);
+            const res1 = await fetch(proxy1, { signal: AbortSignal.timeout(4000) });
             logHistory.push(`[TRY 1 Status] HTTP ${res1.status}`);
 
             if (res1.ok) {
                 const data = await res1.json();
-                return this.smartParse(data, 'Primary Proxy (corsproxy)', logHistory);
+                return this.deepParse(data, 'Primary Proxy (corsproxy.io)', logHistory);
             }
         } catch (e) {
             logHistory.push(`[TRY 1 Error] ${e.message}`);
         }
 
-        // --- Proxy 2 試行 ---
+        // --- Proxy 2 (allorigins.win) 試行 ---
         try {
-            logHistory.push(`[TRY 2] allorigins.win...`);
-            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(5000) });
+            logHistory.push(`[TRY 2] Backup Proxy (allorigins.win)...`);
+            const res2 = await fetch(proxy2, { signal: AbortSignal.timeout(4000) });
             logHistory.push(`[TRY 2 Status] HTTP ${res2.status}`);
 
             if (res2.ok) {
                 const wrapper = await res2.json();
                 const data = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents;
-                return this.smartParse(data, 'Backup Proxy (allorigins)', logHistory);
+                return this.deepParse(data, 'Backup Proxy (allorigins.win)', logHistory);
             }
         } catch (e) {
             logHistory.push(`[TRY 2 Error] ${e.message}`);
         }
 
-        throw new Error(`【通信失敗】\n${logHistory.join('\n')}`);
+        throw new Error(`【通信失敗レポート】\n${logHistory.join('\n')}`);
     },
 
     parseJsonString(rawJson) {
         let logHistory = [`[DEBUG] Manual JSON Input...`];
         try {
             const data = JSON.parse(rawJson);
-            return this.smartParse(data, 'JSON Direct Input', logHistory);
+            return this.deepParse(data, 'JSON Direct Input', logHistory);
         } catch (e) {
-            throw new Error(`[ERR_INVALID_JSON] ${e.message}`);
+            throw new Error(`[ERR_INVALID_JSON] SyntaxError: ${e.message}`);
         }
     },
 
-    // データの階層を自動探索してキャラクター配列を取り出す関数
-    smartParse(data, sourceName, logHistory) {
-        if (!data) throw new Error('[ERR_NULL_PAYLOAD] レスポンスが空です。');
+    // Enka ZZZの深層レスポンス探索・正規化関数
+    deepParse(data, sourceName, logHistory) {
+        if (!data) throw new Error('[ERR_NULL_PAYLOAD] レスポンスデータが空です。');
 
-        logHistory.push(`[ROOT KEYS] [${Object.keys(data).join(', ')}]`);
+        const rootKeys = Object.keys(data);
+        logHistory.push(`[ROOT KEYS] [${rootKeys.join(', ')}]`);
 
-        // 可能性のあるキー候補を片っ端から探索
-        let characters = null;
+        let charList = null;
 
-        if (Array.isArray(data.avatarInfoList)) characters = data.avatarInfoList;
-        else if (Array.isArray(data.characters)) characters = data.characters;
-        else if (Array.isArray(data.avatarList)) characters = data.avatarList;
-        else if (Array.isArray(data.avatars)) characters = data.avatars;
-        else if (data.playerInfo && Array.isArray(data.playerInfo.characters)) characters = data.playerInfo.characters;
+        // 1. 一般的な直下キーのチェック (大文字小文字両対応)
+        const possibleKeys = [
+            'avatarInfoList', 'characters', 'avatarList', 'avatars', 
+            'AvatarInfoList', 'Characters', 'AvatarList', 'Avatars'
+        ];
 
-        // それでも見つからない場合、オブジェクト内部の最初の配列を探索
-        if (!characters) {
-            for (const key in data) {
-                if (Array.isArray(data[key]) && data[key].length > 0) {
-                    characters = data[key];
-                    logHistory.push(`[AUTO DETECT] Character array found in key: "${key}"`);
-                    break;
+        for (const key of possibleKeys) {
+            if (Array.isArray(data[key]) && data[key].length > 0) {
+                charList = data[key];
+                logHistory.push(`[MATCH] Found agent array in root key: "${key}"`);
+                break;
+            }
+        }
+
+        // 2. PlayerInfo / playerInfo 内部のチェック
+        if (!charList) {
+            const pInfo = data.PlayerInfo || data.playerInfo || data.player_info;
+            if (pInfo && typeof pInfo === 'object') {
+                logHistory.push(`[SEARCH] Searching inside PlayerInfo object...`);
+                for (const key of possibleKeys) {
+                    if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
+                        charList = pInfo[key];
+                        logHistory.push(`[MATCH] Found agent array inside PlayerInfo."${key}"`);
+                        break;
+                    }
                 }
             }
         }
 
-        if (!characters || characters.length === 0) {
-            // 解析不能時の生データ構造出力
-            const debugPayload = JSON.stringify(data, null, 2).substring(0, 300);
-            throw new Error(`【パースエラー】データ構造の読み込みに失敗しました。\nAPI Response Preview:\n${debugPayload}`);
+        // 3. 全プロパティの自動深層探索（フォールバック）
+        if (!charList) {
+            logHistory.push(`[SEARCH] Performing deep recursive scan...`);
+            for (const k in data) {
+                if (Array.isArray(data[k]) && data[k].length > 0) {
+                    // 配列の先頭要素がオブジェクト構造かチェック
+                    if (typeof data[k][0] === 'object' && data[k][0] !== null) {
+                        charList = data[k];
+                        logHistory.push(`[AUTO DETECT] Array detected at root["${k}"]`);
+                        break;
+                    }
+                }
+            }
         }
 
-        logHistory.push(`[SUCCESS] Detected ${characters.length} character(s).`);
+        if (!charList) {
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nEnkaレスポンスを受信しましたが、エージェント配列の自動認識に失敗しました。`);
+        }
+
+        logHistory.push(`[SUCCESS] ${charList.length} 件のエージェントデータを抽出完了。`);
 
         return {
             success: true,
             source: sourceName,
-            characters: characters,
+            characters: charList,
             raw: data,
             logs: logHistory.join('\n')
         };
