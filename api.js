@@ -8,6 +8,7 @@ const ZZZApi = {
         }
 
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
+        // ロリポップに配置した proxy.php を呼び出し
         const lolipopProxyUrl = `https://elel.hippy.jp/zzz/tool/proxy.php?uid=${encodeURIComponent(uid)}`;
 
         try {
@@ -71,21 +72,28 @@ const ZZZApi = {
             }
         }
 
-        // 2. PlayerInfo 内部の探索
+        // 2. PlayerInfo / ShowcaseDetail 内部の探索 (ZZZレスポンス構造に適合)
         if (!charList) {
             const pInfo = data.PlayerInfo || data.playerInfo || data.player_info;
             if (pInfo && typeof pInfo === 'object') {
-                for (const key of candidateKeys) {
-                    if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
-                        charList = pInfo[key];
-                        logHistory.push(`[MATCH] Inside PlayerInfo."${key}"`);
-                        break;
+                // ShowcaseDetail 階層のチェック
+                const showcase = pInfo.ShowcaseDetail || pInfo.showcaseDetail;
+                if (showcase && Array.isArray(showcase.AvatarList)) {
+                    charList = showcase.AvatarList;
+                    logHistory.push(`[MATCH] Inside PlayerInfo.ShowcaseDetail.AvatarList`);
+                } else {
+                    for (const key of candidateKeys) {
+                        if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
+                            charList = pInfo[key];
+                            logHistory.push(`[MATCH] Inside PlayerInfo."${key}"`);
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        // 3. 再帰的深層探索
+        // 3. 再帰的深層自動探索（保険）
         if (!charList) {
             const findArrayRecursive = (obj, depth = 0) => {
                 if (!obj || typeof obj !== 'object' || depth > 4) return null;
