@@ -199,7 +199,9 @@ function calculateOptimal() {
 
 function getAgentName(char, index) {
     const rawId = char.id || char.avatarId || char.AvatarId || char.agentId;
-    if (rawId && AGENT_NAME_MAP[rawId]) return AGENT_NAME_MAP[rawId];
+    if (rawId && AGENT_NAME_MAP[rawId]) {
+        return AGENT_NAME_MAP[rawId];
+    }
     return char.name || char.Name || `エージェント ${index + 1}`;
 }
 
@@ -220,21 +222,23 @@ function renderCharacterSelector(characters) {
         card.className = 'char-card';
         card.style.cssText = `
             background: #252830;
-            border: 2px solid #3a3f4d;
+            border: 1px solid #3a3f4d;
             border-radius: 8px;
-            padding: 8px 12px;
+            padding: 10px 14px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
-            min-width: 90px;
+            min-width: 100px;
         `;
         card.innerHTML = `
-            <div style="font-weight: bold; font-size: 0.9rem; color: #fff;">${name}</div>
-            <div style="font-size: 0.75rem; color: #aaa; margin-top: 2px;">Lv.${level}</div>
+            <div style="font-weight: bold; font-size: 0.95rem; color: #fff;">${name}</div>
+            <div style="font-size: 0.75rem; color: #aaa; margin-top: 3px;">Lv.${level}</div>
         `;
 
-        card.onmouseover = () => { if (!card.classList.contains('selected')) card.style.borderColor = '#ffaa00'; };
-        card.onmouseout = () => { if (!card.classList.contains('selected')) card.style.borderColor = '#3a3f4d'; };
+        card.onmouseover = () => card.style.borderColor = '#ffaa00';
+        card.onmouseout = () => {
+            if (!card.classList.contains('selected')) card.style.borderColor = '#3a3f4d';
+        };
         card.onclick = () => selectCharacter(index);
 
         cardList.appendChild(card);
@@ -266,7 +270,7 @@ function extractStatValue(obj, keys) {
 }
 
 /**
- * キャラクターカードクリック時の処理：カード選択 ＆ ステータスフォーム一括連動
+ * キャラクターカードクリック時の処理：カード選択 ＆ ステータスフォーム連動
  */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
@@ -328,20 +332,25 @@ async function fetchEnkaData() {
     const uid = uidInput ? uidInput.value.trim() : '';
 
     if (!uid) {
-        if (statusEl) statusEl.innerText = '[ERR] UIDを入力してください。';
+        if (statusEl) {
+            statusEl.innerText = '[ERR] UIDを入力してください。';
+            statusEl.style.color = '#ff5555';
+        }
         return;
     }
 
     localStorage.setItem('zzz_saved_uid', uid);
+
     const now = Date.now();
     const lastFetchTime = parseInt(localStorage.getItem(`zzz_last_fetch_time_${uid}`) || '0', 10);
     const cachedRawText = localStorage.getItem(`zzz_raw_json_${uid}`);
 
     if (now - lastFetchTime < COOLDOWN_MS && cachedRawText) {
+        const remainingSec = Math.ceil((COOLDOWN_MS - (now - lastFetchTime)) / 1000);
         try {
             const cachedResult = ZZZApi.parseJsonString(cachedRawText);
             if (statusEl) {
-                statusEl.innerText = `[CACHE] キャッシュデータを使用しています。\n[SUCCESS] ${cachedResult.source}`;
+                statusEl.innerText = `[CACHE] キャッシュデータを使用しています。(残り ${remainingSec} 秒)\n[SUCCESS] ${cachedResult.source}`;
                 statusEl.style.color = '#00e676';
             }
             renderCharacterSelector(cachedResult.characters);
@@ -351,7 +360,7 @@ async function fetchEnkaData() {
     }
 
     if (statusEl) {
-        statusEl.innerText = '[通信開始] UIDデータを同期中...';
+        statusEl.innerText = '[通信開始] Lolipop Proxy 経由で同期中...';
         statusEl.style.color = '#ffaa00';
     }
 
@@ -367,6 +376,7 @@ async function fetchEnkaData() {
 
         renderCharacterSelector(result.characters);
         selectCharacter(0);
+
     } catch (err) {
         if (statusEl) {
             statusEl.innerText = err.message || err;
@@ -377,7 +387,11 @@ async function fetchEnkaData() {
 
 function importJsonData() {
     const statusEl = document.getElementById('api-status');
-    const raw = document.getElementById('json-input')?.value.trim() || '';
+    const rawInput = document.getElementById('json-input');
+    const raw = rawInput ? rawInput.value.trim() : '';
+
+    if (!statusEl) return;
+
     try {
         const result = ZZZApi.parseJsonString(raw);
         if (statusEl) {
@@ -386,6 +400,7 @@ function importJsonData() {
         }
         renderCharacterSelector(result.characters);
         selectCharacter(0);
+
     } catch (err) {
         if (statusEl) {
             statusEl.innerText = err.message || err;
@@ -394,10 +409,45 @@ function importJsonData() {
     }
 }
 
+function exportCachedJson() {
+    const uidInput = document.getElementById('uid-input');
+    const uid = uidInput ? uidInput.value.trim() : '';
+    const statusEl = document.getElementById('api-status');
+    const jsonInput = document.getElementById('json-input');
+    const jsonBox = document.getElementById('json-box');
+
+    if (!uid) {
+        alert('UIDが入力されていません。');
+        return;
+    }
+
+    const cachedRawText = localStorage.getItem(`zzz_raw_json_${uid}`);
+    if (!cachedRawText) {
+        alert(`UID: ${uid} のキャッシュが見つかりません。先に「UID自動取得」を実行してください。`);
+        return;
+    }
+
+    if (jsonBox) jsonBox.style.display = 'block';
+    if (jsonInput) {
+        try {
+            const jsonObj = JSON.parse(cachedRawText);
+            jsonInput.value = JSON.stringify(jsonObj, null, 2);
+        } catch (e) {
+            jsonInput.value = cachedRawText;
+        }
+    }
+
+    if (statusEl) {
+        statusEl.innerText = `[INFO] UID: ${uid} のキャッシュJSON原文をテキストエリアに出力しました。`;
+        statusEl.style.color = '#00bcd4';
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     applyPreset();
     const savedUid = localStorage.getItem('zzz_saved_uid');
-    if (savedUid && document.getElementById('uid-input')) {
-        document.getElementById('uid-input').value = savedUid;
+    const uidInput = document.getElementById('uid-input');
+    if (savedUid && uidInput) {
+        uidInput.value = savedUid;
     }
 });
