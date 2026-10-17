@@ -1,5 +1,5 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール (ステータス確実連動・抽出修正版)
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (安全な要素存在チェック・ステータス連動版)
  */
 
 const AGENT_NAME_MAP = {
@@ -29,9 +29,13 @@ function toggleJsonInput() {
 function applyPreset() {
     const agentKey = document.getElementById('agent-select').value;
     const data = PRESETS[agentKey];
-    document.getElementById('role-display').innerText = `特性: ${data.role}型${data.role === '鋭御' ? ' (多重会心モデル適用)' : ''}`;
+    const roleDisplay = document.getElementById('role-display');
+    if (roleDisplay) {
+        roleDisplay.innerText = `特性: ${data.role}型${data.role === '鋭御' ? ' (多重会心モデル適用)' : ''}`;
+    }
     
     const container = document.getElementById('dynamic-inputs');
+    if (!container) return;
     container.innerHTML = '';
 
     if (data.role === '鋭御') {
@@ -59,24 +63,27 @@ function applyPreset() {
         `;
     }
 
-    document.getElementById('disc4-main').value = data.d4;
-    document.getElementById('disc5-main').value = data.d5;
-    document.getElementById('disc6-main').value = data.d6;
+    const d4 = document.getElementById('disc4-main');
+    const d5 = document.getElementById('disc5-main');
+    const d6 = document.getElementById('disc6-main');
+    if (d4) d4.value = data.d4;
+    if (d5) d5.value = data.d5;
+    if (d6) d6.value = data.d6;
     calculateOptimal();
 }
 
 function calculateOptimal() {
     const agentKey = document.getElementById('agent-select').value;
     const role = PRESETS[agentKey].role;
-    const buff = parseFloat(document.getElementById('buff-percent').value) || 0;
+    const buff = parseFloat(document.getElementById('buff-percent')?.value || 0);
 
-    const enemyLv = parseFloat(document.getElementById('enemy-level').value) || 60;
-    const enemyRes = parseFloat(document.getElementById('enemy-res').value) || 0;
-    const stunMult = parseFloat(document.getElementById('stun-mult').value) || 1.5;
+    const enemyLv = parseFloat(document.getElementById('enemy-level')?.value || 60);
+    const enemyRes = parseFloat(document.getElementById('enemy-res')?.value || 0);
+    const stunMult = parseFloat(document.getElementById('stun-mult')?.value || 1.5);
 
-    const d4 = document.getElementById('disc4-main').value;
-    const d5 = document.getElementById('disc5-main').value;
-    const d6 = document.getElementById('disc6-main').value;
+    const d4 = document.getElementById('disc4-main')?.value;
+    const d5 = document.getElementById('disc5-main')?.value;
+    const d6 = document.getElementById('disc6-main')?.value;
 
     let addAtkP = 0, addHpP = 0, addDefP = 0, addAp = 0, addCr = 0, addCd = 0, addElem = 0, addPenP = 0, addAm = 0;
 
@@ -179,11 +186,15 @@ function calculateOptimal() {
         `;
     }
 
-    document.getElementById('total-stats').innerHTML = statsSummary;
-    document.getElementById('opt-details').innerHTML = `
-        <div>想定ダメージ期待値: <strong>${finalDamage.toLocaleString()}</strong></div>
-        <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※敵Lv.${enemyLv}・耐性${enemyRes}%・ブレイク(${stunMult}倍)での公式減衰反映値です。</div>
-    `;
+    const totalStatsEl = document.getElementById('total-stats');
+    const optDetailsEl = document.getElementById('opt-details');
+    if (totalStatsEl) totalStatsEl.innerHTML = statsSummary;
+    if (optDetailsEl) {
+        optDetailsEl.innerHTML = `
+            <div>想定ダメージ期待値: <strong>${finalDamage.toLocaleString()}</strong></div>
+            <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※敵Lv.${enemyLv}・耐性${enemyRes}%・ブレイク(${stunMult}倍)での公式減衰反映値です。</div>
+        `;
+    }
 }
 
 function getAgentName(char, index) {
@@ -232,27 +243,13 @@ function renderCharacterSelector(characters) {
     selectorBox.style.display = 'block';
 }
 
-/**
- * Enka APIの多様な階層・キー名からステータス数値を安全に抽出する関数
- */
-function extractStatValue(char, possibleKeys) {
-    if (!char || typeof char !== 'object') return 0;
-
-    // 1. キャラクター直下のオブジェクト（stats, fightProp, properties 等）を順次探索
-    const targets = [
-        char,
-        char.stats,
-        char.fightProp,
-        char.Properties,
-        char.property,
-        char.baseProperties,
-        char.propMap,
-        char.combatStats
-    ];
+function extractStatValue(obj, keys) {
+    if (!obj || typeof obj !== 'object') return 0;
+    const targets = [obj, obj.stats, obj.fightProp, obj.Properties, obj.property, obj.baseProperties, obj.propMap, obj.combatStats];
 
     for (const target of targets) {
         if (!target || typeof target !== 'object') continue;
-        for (const k of possibleKeys) {
+        for (const k of keys) {
             if (target[k] !== undefined && target[k] !== null) {
                 const val = target[k];
                 if (typeof val === 'object') {
@@ -269,13 +266,12 @@ function extractStatValue(char, possibleKeys) {
 }
 
 /**
- * キャラクターカードクリック時の処理：名前から特性自動判定 ＆ ステータスフォーム一括連動
+ * キャラクターカードクリック時の処理：カード選択 ＆ ステータスフォーム一括連動
  */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
     if (!char) return;
 
-    // 各種ステータスの抽出（Enka APIの様々なキー名パターンに対応）
     const atk = extractStatValue(char, ['atk', 'BASE_ATK', '1', 1, 'Atk', 'Attack']);
     const def = extractStatValue(char, ['def', 'BASE_DEF', '3', 3, 'Def', 'Defense']);
     const hp = extractStatValue(char, ['hp', 'BASE_HP', '2', 2, 'Hp', 'HP']);
@@ -283,7 +279,7 @@ function selectCharacter(index) {
     const cd = extractStatValue(char, ['critDmg', 'CRITICAL_HURT', '22', 22, 'CritDmg', 'crit_dmg']);
     const ap = extractStatValue(char, ['elementMastery', 'AP', '31', 31, 'AnomProf', 'anomalyProficiency']);
 
-    // キャラ名から自動でプリセット（特性）を切り替え
+    // キャラ名から自動で特性（プリセット）を判定・切り替え
     const name = getAgentName(char, index);
     const agentSelect = document.getElementById('agent-select');
     if (agentSelect) {
@@ -291,10 +287,10 @@ function selectCharacter(index) {
         else if (name.includes('ジェーン') || name.includes('柳') || name.includes('バーニス')) agentSelect.value = 'jane';
         else if (name.includes('朱鳶') || name.includes('エレン')) agentSelect.value = 'zhu_yuan';
         else if (name.includes('儀玄')) agentSelect.value = 'gigen';
-        applyPreset(); // 特性に応じたフォーム項目を再構築
+        applyPreset(); // 特性に応じたフォーム項目（base-defやbase-atkなど）を再構築
     }
 
-    // 抽出した数値をHTMLの入力フォームへそれぞれセット
+    // 存在する入力欄だけに安全に数値をセット
     const atkEl = document.getElementById('base-atk');
     const defEl = document.getElementById('base-def');
     const hpEl = document.getElementById('base-hp');
@@ -323,7 +319,6 @@ function selectCharacter(index) {
         }
     });
 
-    // フォーム値の書き換えに伴いダメージ計算を即時実行
     calculateOptimal();
 }
 
@@ -345,45 +340,57 @@ async function fetchEnkaData() {
     if (now - lastFetchTime < COOLDOWN_MS && cachedRawText) {
         try {
             const cachedResult = ZZZApi.parseJsonString(cachedRawText);
-            statusEl.innerText = `[CACHE] キャッシュデータを使用しています。\n[SUCCESS] ${cachedResult.source}`;
-            statusEl.style.color = '#00e676';
+            if (statusEl) {
+                statusEl.innerText = `[CACHE] キャッシュデータを使用しています。\n[SUCCESS] ${cachedResult.source}`;
+                statusEl.style.color = '#00e676';
+            }
             renderCharacterSelector(cachedResult.characters);
             selectCharacter(0);
             return;
         } catch (e) {}
     }
 
-    statusEl.innerText = '[通信開始] UIDデータを同期中...';
-    statusEl.style.color = '#ffaa00';
+    if (statusEl) {
+        statusEl.innerText = '[通信開始] UIDデータを同期中...';
+        statusEl.style.color = '#ffaa00';
+    }
 
     try {
         const result = await ZZZApi.fetchByUid(uid);
         localStorage.setItem(`zzz_last_fetch_time_${uid}`, Date.now().toString());
         localStorage.setItem(`zzz_raw_json_${uid}`, result.rawText);
 
-        statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
-        statusEl.style.color = '#00e676';
+        if (statusEl) {
+            statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
+            statusEl.style.color = '#00e676';
+        }
 
         renderCharacterSelector(result.characters);
         selectCharacter(0);
     } catch (err) {
-        statusEl.innerText = err.message || err;
-        statusEl.style.color = '#ff5555';
+        if (statusEl) {
+            statusEl.innerText = err.message || err;
+            statusEl.style.color = '#ff5555';
+        }
     }
 }
 
 function importJsonData() {
     const statusEl = document.getElementById('api-status');
-    const raw = document.getElementById('json-input').value.trim();
+    const raw = document.getElementById('json-input')?.value.trim() || '';
     try {
         const result = ZZZApi.parseJsonString(raw);
-        statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
-        statusEl.style.color = '#00e676';
+        if (statusEl) {
+            statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
+            statusEl.style.color = '#00e676';
+        }
         renderCharacterSelector(result.characters);
         selectCharacter(0);
     } catch (err) {
-        statusEl.innerText = err.message || err;
-        statusEl.style.color = '#ff5555';
+        if (statusEl) {
+            statusEl.innerText = err.message || err;
+            statusEl.style.color = '#ff5555';
+        }
     }
 }
 
