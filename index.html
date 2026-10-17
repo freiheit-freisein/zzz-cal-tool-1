@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.5.2</title>
+    <title>ゼンゼロ ディスク＆PTバフ最適化計算機</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.5.2</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">自前プロキシ連携 ＆ JSONキャッシュ・出力対応</p>
+            <h1>ゼンゼロ ビルド＆PTバフ与ダメ計算機</h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">ビルドカード表示・PTバフ一覧・ステータス増減比較機能</p>
         </header>
 
         <!-- API取得 & データ取り込みセクション -->
@@ -20,132 +20,113 @@
                 <input type="text" id="uid-input" placeholder="例: 1301050483" style="width: 160px;">
                 <button type="button" id="btn-fetch" onclick="fetchEnkaData()">UID自動取得</button>
                 <button type="button" onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
-                <button type="button" onclick="exportCachedJson()" style="background:#2a52be;" title="キャッシュされている生のJSONテキストを表示します">キャッシュJSON出力</button>
+                <button type="button" onclick="exportCachedJson()" style="background:#2a52be;">キャッシュJSON出力</button>
             </div>
             <div id="json-box" style="display: none; margin-top: 10px;">
-                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けるか、[キャッシュJSON出力]で読み込めます" style="width:100%; height:120px;"></textarea>
+                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けてください" style="width:100%; height:100px;"></textarea>
                 <button type="button" onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
             </div>
             
-            <!-- 詳細ログ出力エリア -->
             <pre id="api-status" style="font-size: 0.8rem; color: var(--sub-text); margin-top: 10px; background: #181920; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">[SYSTEM READY] UIDを入力して「UID自動取得」を押してください。</pre>
 
-            <!-- 取得したキャラクターカード選択エリア -->
+            <!-- エージェント選択カード -->
             <div id="character-selector" style="display: none; margin-top: 15px; background: #1c1e24; padding: 12px; border-radius: 8px;">
-                <h3 style="font-size: 0.95rem; color: #ffaa00; margin-bottom: 10px; margin-top:0;">▼ 読み込むエージェントを選択してください</h3>
+                <h3 style="font-size: 0.95rem; color: #ffaa00; margin-bottom: 10px; margin-top:0;">▼ エージェント選択</h3>
                 <div id="character-card-list" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
             </div>
         </div>
 
-        <div class="grid-layout">
-            <!-- 左カラム：エージェント & 敵設定 -->
-            <div>
-                <div class="card">
-                    <h2>エージェント設定</h2>
-                    <div class="form-group">
-                        <label>プリセット選択</label>
-                        <select id="agent-select" onchange="applyPreset()">
-                            <option value="claretta">クラレッタ (電気/鋭御)</option>
-                            <option value="jane">ジェーン (物理/異常)</option>
-                            <option value="zhu_yuan">朱鳶 (エーテル/強攻)</option>
-                            <option value="gigen">儀玄 (エーテル/命破)</option>
-                        </select>
-                        <div id="role-display" class="role-badge">特性: 鋭御型</div>
-                    </div>
-                    
-                    <div id="dynamic-inputs"></div>
-
-                    <div class="form-group">
-                        <label>チームバフ 攻撃/HP/防御 (%)</label>
-                        <input type="number" id="buff-percent" value="20" onchange="calculateOptimal()">
-                    </div>
+        <!-- 1. ビルドカード風表示エリア -->
+        <div class="card" id="build-card-display" style="margin-top: 15px; background: #1a1c23; border: 1px solid #2d313e;">
+            <h2>現在のキャラビルド概要</h2>
+            <div id="build-card-content" class="build-card-grid">
+                <div class="build-summary">
+                    <div id="build-agent-name" style="font-size: 1.3rem; font-weight: bold; color: #ffaa00;">-</div>
+                    <div id="build-stats-list" style="margin-top: 10px; line-height: 1.7; font-size: 0.88rem;"></div>
                 </div>
-
-                <div class="card">
-                    <h2>敵環境設定</h2>
-                    <div class="form-group">
-                        <label>敵レベル (標準: 60)</label>
-                        <input type="number" id="enemy-level" value="60" onchange="calculateOptimal()">
-                    </div>
-                    <div class="form-group">
-                        <label>敵属性耐性 (%)</label>
-                        <input type="number" id="enemy-res" value="0" placeholder="0" onchange="calculateOptimal()">
-                    </div>
-                    <div class="form-group">
-                        <label>ブレイク状態倍率</label>
-                        <select id="stun-mult" onchange="calculateOptimal()">
-                            <option value="1.0">通常時 (100%)</option>
-                            <option value="1.5" selected>ブレイク時 (150%)</option>
-                            <option value="2.0">弱点ブレイク時 (200%)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>計算結果</h2>
-                    <div id="recommendation-result" class="result-box">
-                        <div class="result-title">実数値ダメージ期待値</div>
-                        <div id="opt-details">計算中...</div>
-                    </div>
+                <div class="build-discs">
+                    <div style="font-weight: bold; margin-bottom: 6px; color: #aaa;">装着ドライバディスク (1〜6)</div>
+                    <div id="build-disc-grid" class="disc-summary-grid"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- 右カラム：ディスクメインステータス試算 -->
-            <div>
-                <div class="card">
-                    <h2>ディスク メインステータス設定</h2>
-                    <div class="disc-grid">
-                        <div class="disc-card">
-                            <h3>ディスク [4]</h3>
-                            <div class="form-group">
-                                <select id="disc4-main" onchange="calculateOptimal()">
-                                    <option value="crit_rate">会心率 (+24%)</option>
-                                    <option value="crit_dmg">会心ダメージ (+48%)</option>
-                                    <option value="def_percent">防御力 (+30%)</option>
-                                    <option value="ap">異常マスタリー (+92)</option>
-                                    <option value="atk_percent">攻撃力 (+30%)</option>
-                                    <option value="hp_percent">HP (+30%)</option>
-                                </select>
-                            </div>
-                        </div>
+        <!-- 2. スプレッドシート型 PTバフ設定表 -->
+        <div class="card" style="margin-top: 15px;">
+            <h2>パーティ（PT）バフ＆デバフ一覧設定</h2>
+            <div style="overflow-x: auto;">
+                <table class="spreadsheet-table">
+                    <thead>
+                        <tr>
+                            <th>有効</th>
+                            <th>バフ・効果名</th>
+                            <th>攻撃力 (%)</th>
+                            <th>固定攻撃力</th>
+                            <th>与ダメ/属性%</th>
+                            <th>会心率 (%)</th>
+                            <th>会心ダメ (%)</th>
+                            <th>異常Prof</th>
+                            <th>貫通率 (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buff-table-body">
+                        <tr>
+                            <td><input type="checkbox" class="buff-enable" checked onchange="calculateOptimal()"></td>
+                            <td>コアパッシブ / チーム追加能力</td>
+                            <td><input type="number" class="buff-atk-p" value="15" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-atk-f" value="0" step="10" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-dmg-p" value="20" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cr" value="0" step="0.5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cd" value="0" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-ap" value="0" step="5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-pen" value="0" step="1" onchange="calculateOptimal()"></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" class="buff-enable" checked onchange="calculateOptimal()"></td>
+                            <td>音動機・ディスク4セットバフ</td>
+                            <td><input type="number" class="buff-atk-p" value="12" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-atk-f" value="0" step="10" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-dmg-p" value="15" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cr" value="12" step="0.5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cd" value="0" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-ap" value="30" step="5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-pen" value="0" step="1" onchange="calculateOptimal()"></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" class="buff-enable" onchange="calculateOptimal()"></td>
+                            <td>支援キャラバフ（例: ニコ/ルーシー等）</td>
+                            <td><input type="number" class="buff-atk-p" value="0" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-atk-f" value="600" step="10" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-dmg-p" value="25" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cr" value="0" step="0.5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-cd" value="0" step="1" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-ap" value="0" step="5" onchange="calculateOptimal()"></td>
+                            <td><input type="number" class="buff-pen" value="0" step="1" onchange="calculateOptimal()"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-                        <div class="disc-card">
-                            <h3>ディスク [5]</h3>
-                            <div class="form-group">
-                                <select id="disc5-main" onchange="calculateOptimal()">
-                                    <option value="elem_bonus">属性ダメージ (+30%)</option>
-                                    <option value="pen_percent">貫通率 (+24%)</option>
-                                    <option value="def_percent">防御力 (+30%)</option>
-                                    <option value="atk_percent">攻撃力 (+30%)</option>
-                                    <option value="hp_percent">HP (+30%)</option>
-                                </select>
-                            </div>
-                        </div>
+        <!-- 3. ステータス増減 ＆ 与ダメ変動比較シミュレーション -->
+        <div class="grid-layout" style="margin-top: 15px;">
+            <div class="card">
+                <h2>ステータス手動微調整・増減（比較用）</h2>
+                <div class="form-group"><label>攻撃力% 増減 (+/-)</label><input type="number" id="adj-atk-p" value="0" step="3" onchange="calculateOptimal()"></div>
+                <div class="form-group"><label>会心率% 増減 (+/-)</label><input type="number" id="adj-cr" value="0" step="2.4" onchange="calculateOptimal()"></div>
+                <div class="form-group"><label>会心ダメ% 増減 (+/-)</label><input type="number" id="adj-cd" value="0" step="4.8" onchange="calculateOptimal()"></div>
+                <div class="form-group"><label>異常マスタリー 増減 (+/-)</label><input type="number" id="adj-ap" value="0" step="9" onchange="calculateOptimal()"></div>
+            </div>
 
-                        <div class="disc-card">
-                            <h3>ディスク [6]</h3>
-                            <div class="form-group">
-                                <select id="disc6-main" onchange="calculateOptimal()">
-                                    <option value="def_percent">防御力 (+30%)</option>
-                                    <option value="anom_am">異常掌握 (+30%)</option>
-                                    <option value="atk_percent">攻撃力 (+30%)</option>
-                                    <option value="energy_regen">エネルギー回復 (+60%)</option>
-                                    <option value="hp_percent">HP (+30%)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>各乗数エリア内訳</h2>
-                    <div id="total-stats" style="line-height: 1.8; font-size: 0.9rem;"></div>
+            <div class="card">
+                <h2>与ダメ・期待値比較結果</h2>
+                <div id="sim-result-box" style="padding: 12px; background: #121318; border-radius: 6px;">
+                    <div id="sim-comparison">計算中...</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 読み込み順序: api.js -> script.js -->
     <script src="api.js"></script>
     <script src="script.js"></script>
 </body>
