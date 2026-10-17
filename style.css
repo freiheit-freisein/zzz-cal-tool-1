@@ -1,54 +1,98 @@
-/* スプレッドシートテーブルスタイル */
+:root {
+    --bg-color: #121318;
+    --card-bg: #1c1e26;
+    --border-color: #2d313e;
+    --text-color: #e1e3e8;
+    --sub-text: #8b90a0;
+    --accent-color: #ffaa00;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 15px;
+}
+
+h1, h2, h3 {
+    margin-top: 0;
+    color: #fff;
+}
+
+/* スプレッドシートテーブルデザイン */
 .spreadsheet-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    margin-top: 8px;
-}
-
-.spreadsheet-table th, .spreadsheet-table td {
-    border: 1px solid #333742;
-    padding: 6px 8px;
-    text-align: center;
-}
-
-.spreadsheet-table th {
-    background: #232730;
-    color: #ffaa00;
-}
-
-.spreadsheet-table input[type="number"] {
-    width: 65px;
-    background: #181920;
-    border: 1px solid #444;
-    color: #fff;
-    text-align: right;
-    padding: 3px 5px;
-    border-radius: 4px;
-}
-
-/* ビルドカードエリアレイアウト */
-.build-card-grid {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 15px;
     margin-top: 10px;
 }
 
-@media (max-width: 768px) {
-    .build-card-grid { grid-template-columns: 1fr; }
-}
-
-.disc-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 8px;
-}
-
-.disc-mini-card {
-    background: #252832;
-    border: 1px solid #3d4252;
-    border-radius: 6px;
+.spreadsheet-table th {
+    background: #282c37;
+    color: var(--accent-color);
     padding: 8px;
-    font-size: 0.75rem;
+    border: 1px solid var(--border-color);
+}
+
+.spreadsheet-table td {
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    background: #181920;
+    text-align: center;
+}
+
+.spreadsheet-table input[type="number"] {
+    width: 60px;
+    background: #0f1014;
+    border: 1px solid #3a3f4d;
+    color: #00e676;
+    font-weight: bold;
+    text-align: right;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--sub-text);
+    margin-bottom: 4px;
+}
+
+.form-group input {
+    width: 100%;
+    max-width: 200px;
+    background: #121318;
+    border: 1px solid #3a3f4d;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+@media (max-width: 768px) {
+    .grid-layout { grid-template-columns: 1fr; }
 }
