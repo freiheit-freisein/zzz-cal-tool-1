@@ -1,7 +1,8 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール (安全な要素存在チェック・全連動修正版)
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (キャラ名マッピング更新＆安全連動修正版)
  */
 
+// エージェントIDとキャラ名の対応辞書 (最新環境対応)
 const AGENT_NAME_MAP = {
     1011: 'アンビー', 1021: 'ビリー', 1031: 'ニコ', 1041: '猫又', 1051: 'アンドー',
     1061: 'ベン', 1071: 'クレタ', 1081: 'グレース', 1091: 'ライカン', 1101: 'カリン',
@@ -270,6 +271,9 @@ function extractStatValue(obj, keys) {
     return 0;
 }
 
+/**
+ * キャラクターカードクリック時の処理：選択 ＆ 安全なフォーム連動
+ */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
     if (!char) return;
@@ -293,7 +297,7 @@ function selectCharacter(index) {
     const cd = extractStatValue(char, ['critDmg', 'CRITICAL_HURT', '22', 22, 'CritDmg', 'crit_dmg']);
     const ap = extractStatValue(char, ['elementMastery', 'AP', '31', 31, 'AnomProf', 'anomalyProficiency']);
 
-    // 画面上に存在する入力欄だけに安全に数値をセット（存在しない要素を探して止まるのを防止）
+    // 画面上に存在する入力欄だけに安全に数値をセット
     const atkEl = document.getElementById('base-atk');
     const defEl = document.getElementById('base-def');
     const hpEl = document.getElementById('base-hp');
