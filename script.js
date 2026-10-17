@@ -1,5 +1,5 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール (JSON原文キャッシュ＆出力対応版)
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (gencalc風カード選択連動版)
  */
 
 const AGENT_NAME_MAP = {
@@ -19,7 +19,7 @@ const PRESETS = {
 };
 
 let fetchedCharacters = [];
-const COOLDOWN_MS = 3 * 60 * 1000; // 3分間制限（180,000ミリ秒）
+const COOLDOWN_MS = 3 * 60 * 1000;
 
 function toggleJsonInput() {
     const box = document.getElementById('json-box');
@@ -188,12 +188,13 @@ function calculateOptimal() {
 
 function getAgentName(char, index) {
     const rawId = char.id || char.avatarId || char.AvatarId || char.agentId;
-    if (rawId && AGENT_NAME_MAP[rawId]) {
-        return AGENT_NAME_MAP[rawId];
-    }
+    if (rawId && AGENT_NAME_MAP[rawId]) return AGENT_NAME_MAP[rawId];
     return char.name || char.Name || `エージェント ${index + 1}`;
 }
 
+/**
+ * キャラクター選択カード一覧の描画 (gencalc風)
+ */
 function renderCharacterSelector(characters) {
     fetchedCharacters = characters;
     const selectorBox = document.getElementById('character-selector');
@@ -211,23 +212,21 @@ function renderCharacterSelector(characters) {
         card.className = 'char-card';
         card.style.cssText = `
             background: #252830;
-            border: 1px solid #3a3f4d;
+            border: 2px solid #3a3f4d;
             border-radius: 8px;
-            padding: 10px 14px;
+            padding: 8px 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
-            min-width: 100px;
+            min-width: 90px;
         `;
         card.innerHTML = `
-            <div style="font-weight: bold; font-size: 0.95rem; color: #fff;">${name}</div>
-            <div style="font-size: 0.75rem; color: #aaa; margin-top: 3px;">Lv.${level}</div>
+            <div style="font-weight: bold; font-size: 0.9rem; color: #fff;">${name}</div>
+            <div style="font-size: 0.75rem; color: #aaa; margin-top: 2px;">Lv.${level}</div>
         `;
 
-        card.onmouseover = () => card.style.borderColor = '#ffaa00';
-        card.onmouseout = () => {
-            if (!card.classList.contains('selected')) card.style.borderColor = '#3a3f4d';
-        };
+        card.onmouseover = () => { if (!card.classList.contains('selected')) card.style.borderColor = '#ffaa00'; };
+        card.onmouseout = () => { if (!card.classList.contains('selected')) card.style.borderColor = '#3a3f4d'; };
         card.onclick = () => selectCharacter(index);
 
         cardList.appendChild(card);
@@ -238,14 +237,12 @@ function renderCharacterSelector(characters) {
 
 function extractStatValue(obj, keys) {
     if (!obj || typeof obj !== 'object') return 0;
-    
     for (const k of keys) {
         if (obj[k] !== undefined && obj[k] !== null) {
             const val = typeof obj[k] === 'object' ? (obj[k].value || obj[k].val || 0) : obj[k];
             if (val) return parseFloat(val);
         }
     }
-
     const subObjects = [obj.stats, obj.fightProp, obj.Properties, obj.property, obj.baseProperties];
     for (const sub of subObjects) {
         if (sub && typeof sub === 'object') {
@@ -260,6 +257,9 @@ function extractStatValue(obj, keys) {
     return 0;
 }
 
+/**
+ * キャラクターカードをクリックしたときのフォーム＆ステータス連動処理
+ */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
     if (!char) return;
@@ -270,6 +270,17 @@ function selectCharacter(index) {
     const cr = extractStatValue(char, ['critRate', 'CRITICAL', '20', 20, 'CritRate', 'crit_rate']);
     const cd = extractStatValue(char, ['critDmg', 'CRITICAL_HURT', '22', 22, 'CritDmg', 'crit_dmg']);
     const ap = extractStatValue(char, ['elementMastery', 'AP', '31', 31, 'AnomProf', 'anomalyProficiency']);
+
+    // キャラ名から自動でプリセット・特性を判定して切り替え
+    const name = getAgentName(char, index);
+    const agentSelect = document.getElementById('agent-select');
+    if (agentSelect) {
+        if (name.includes('クラレッタ')) agentSelect.value = 'claretta';
+        else if (name.includes('ジェーン') || name.includes('柳') || name.includes('バーニス')) agentSelect.value = 'jane';
+        else if (name.includes('朱鳶') || name.includes('エレン')) agentSelect.value = 'zhu_yuan';
+        else if (name.includes('儀玄')) agentSelect.value = 'gigen';
+        applyPreset(); // フォーム再構築
+    }
 
     const atkEl = document.getElementById('base-atk');
     const defEl = document.getElementById('base-def');
@@ -285,6 +296,7 @@ function selectCharacter(index) {
     if (cdEl && cd) cdEl.value = (cd > 1 ? cd : cd * 100).toFixed(1);
     if (apEl && ap) apEl.value = Math.round(ap);
 
+    // カードのハイライト枠線切り替え
     const cards = document.querySelectorAll('#character-card-list .char-card');
     cards.forEach((c, i) => {
         if (i === index) {
@@ -301,54 +313,37 @@ function selectCharacter(index) {
     calculateOptimal();
 }
 
-/**
- * UID自動取得 (3分間制限 ＆ JSON原文キャッシュ ＆ LocalStorage自動保存)
- */
 async function fetchEnkaData() {
     const uidInput = document.getElementById('uid-input');
     const statusEl = document.getElementById('api-status');
     const uid = uidInput ? uidInput.value.trim() : '';
 
     if (!uid) {
-        if (statusEl) {
-            statusEl.innerText = '[ERR] UIDを入力してください。';
-            statusEl.style.color = '#ff5555';
-        }
+        if (statusEl) statusEl.innerText = '[ERR] UIDを入力してください。';
         return;
     }
 
     localStorage.setItem('zzz_saved_uid', uid);
-
     const now = Date.now();
     const lastFetchTime = parseInt(localStorage.getItem(`zzz_last_fetch_time_${uid}`) || '0', 10);
     const cachedRawText = localStorage.getItem(`zzz_raw_json_${uid}`);
 
-    // ★ 3分以内の再リクエスト時はキャッシュされたJSON原文をパースして使用
     if (now - lastFetchTime < COOLDOWN_MS && cachedRawText) {
-        const remainingSec = Math.ceil((COOLDOWN_MS - (now - lastFetchTime)) / 1000);
         try {
             const cachedResult = ZZZApi.parseJsonString(cachedRawText);
-            statusEl.innerText = `[CACHE] 前回の取得から3分経過していないため、JSON原文キャッシュを使用します。(新規API呼び出し可能まで: 残り ${remainingSec} 秒)\n` +
-                                 `[SUCCESS] ${cachedResult.source}\n${cachedResult.logs}`;
+            statusEl.innerText = `[CACHE] キャッシュデータを使用しています。\n[SUCCESS] ${cachedResult.source}`;
             statusEl.style.color = '#00e676';
-
             renderCharacterSelector(cachedResult.characters);
             selectCharacter(0);
             return;
-        } catch (e) {
-            // パース失敗時は通常API通信へ
-        }
+        } catch (e) {}
     }
 
-    if (!statusEl) return;
-
-    statusEl.innerText = '[通信開始] Lolipop Proxy 経由で同期中...';
+    statusEl.innerText = '[通信開始] UIDデータを同期中...';
     statusEl.style.color = '#ffaa00';
 
     try {
         const result = await ZZZApi.fetchByUid(uid);
-        
-        // 成功時、生JSON文字列と取得時間をキャッシュに保存
         localStorage.setItem(`zzz_last_fetch_time_${uid}`, Date.now().toString());
         localStorage.setItem(`zzz_raw_json_${uid}`, result.rawText);
 
@@ -357,7 +352,6 @@ async function fetchEnkaData() {
 
         renderCharacterSelector(result.characters);
         selectCharacter(0);
-
     } catch (err) {
         statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
@@ -366,71 +360,38 @@ async function fetchEnkaData() {
 
 function importJsonData() {
     const statusEl = document.getElementById('api-status');
-    const rawInput = document.getElementById('json-input');
-    const raw = rawInput ? rawInput.value.trim() : '';
-
-    if (!statusEl) return;
-
+    const raw = document.getElementById('json-input').value.trim();
     try {
         const result = ZZZApi.parseJsonString(raw);
         statusEl.innerText = `[SUCCESS] ${result.source}\n${result.logs}`;
         statusEl.style.color = '#00e676';
-
         renderCharacterSelector(result.characters);
         selectCharacter(0);
-
     } catch (err) {
         statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
     }
 }
 
-/**
- * キャッシュされている生のJSONテキストをテキストエリアに出力する
- */
 function exportCachedJson() {
-    const uidInput = document.getElementById('uid-input');
-    const uid = uidInput ? uidInput.value.trim() : '';
-    const statusEl = document.getElementById('api-status');
-    const jsonInput = document.getElementById('json-input');
-    const jsonBox = document.getElementById('json-box');
-
-    if (!uid) {
-        alert('UIDが入力されていません。');
-        return;
-    }
-
+    const uid = document.getElementById('uid-input').value.trim();
     const cachedRawText = localStorage.getItem(`zzz_raw_json_${uid}`);
     if (!cachedRawText) {
-        alert(`UID: ${uid} のキャッシュされたJSONデータが見つかりません。先に「UID自動取得」を実行してください。`);
+        alert('キャッシュされたデータがありません。先にUID自動取得を行ってください。');
         return;
     }
-
-    // テキストエリアを開いてキャッシュJSONを流し込む
-    if (jsonBox) jsonBox.style.display = 'block';
-    if (jsonInput) {
-        // 読みやすくフォーマット可能なら整形する
-        try {
-            const jsonObj = JSON.parse(cachedRawText);
-            jsonInput.value = JSON.stringify(jsonObj, null, 2);
-        } catch (e) {
-            jsonInput.value = cachedRawText;
-        }
-    }
-
-    if (statusEl) {
-        statusEl.innerText = `[INFO] UID: ${uid} のキャッシュJSON原文をテキストエリアに出力しました。`;
-        statusEl.style.color = '#00bcd4';
+    document.getElementById('json-box').style.display = 'block';
+    try {
+        document.getElementById('json-input').value = JSON.stringify(JSON.parse(cachedRawText), null, 2);
+    } catch(e) {
+        document.getElementById('json-input').value = cachedRawText;
     }
 }
 
-// ページ読み込み時に初期化 ＆ 保存されたUIDの自動補完
 window.addEventListener('DOMContentLoaded', () => {
     applyPreset();
-
     const savedUid = localStorage.getItem('zzz_saved_uid');
-    const uidInput = document.getElementById('uid-input');
-    if (savedUid && uidInput) {
-        uidInput.value = savedUid;
+    if (savedUid && document.getElementById('uid-input')) {
+        document.getElementById('uid-input').value = savedUid;
     }
 });

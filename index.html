@@ -3,36 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ゼンゼロ ディスク最適化計算機 Ver.5.2</title>
+    <title>ゼンゼロ ディスク最適化計算機 (gencalc風対応版)</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>ゼンゼロ ドライバディスク最適化計算機 <span class="version-badge">Ver.5.2</span></h1>
-            <p style="color: var(--sub-text); font-size: 0.9rem;">自前プロキシ連携 ＆ JSONキャッシュ・出力対応</p>
+            <h1>ゼンゼロ ドライバディスク最適化計算機</h1>
+            <p style="color: var(--sub-text); font-size: 0.9rem;">UID自動取得 ＆ キャラクターカード選択連動システム</p>
         </header>
 
         <!-- API取得 & データ取り込みセクション -->
-        <div class="api-section">
+        <div class="api-section card">
             <div class="api-controls">
                 <label for="uid-input">Enka / HoYoLAB UID:</label>
                 <input type="text" id="uid-input" placeholder="例: 1301050483" style="width: 160px;">
-                <button type="button" id="btn-fetch" onclick="fetchEnkaData()">UID自動取得</button>
+                <button type="button" onclick="fetchEnkaData()">UID自動取得</button>
                 <button type="button" onclick="toggleJsonInput()" style="background:#444;">JSON直貼り入力</button>
-                <button type="button" onclick="exportCachedJson()" style="background:#2a52be;" title="キャッシュされている生のJSONテキストを表示します">キャッシュJSON出力</button>
+                <button type="button" onclick="exportCachedJson()" style="background:#2a52be;" title="キャッシュされている生のJSONを表示">JSON出力</button>
             </div>
             <div id="json-box" style="display: none; margin-top: 10px;">
-                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスをそのまま貼り付けるか、[キャッシュJSON出力]で読み込めます" style="width:100%; height:120px;"></textarea>
+                <textarea id="json-input" placeholder="Enka API等のJSONレスポンスを貼り付けてください" style="width:100%; height:100px; background:#181920; color:#fff; border:1px solid #3a3f4d; border-radius:6px; padding:8px;"></textarea>
                 <button type="button" onclick="importJsonData()" style="margin-top: 5px; padding: 6px 15px; font-size: 0.85rem;">データ解析・反映</button>
             </div>
             
-            <!-- 詳細ログ出力エリア -->
             <pre id="api-status" style="font-size: 0.8rem; color: var(--sub-text); margin-top: 10px; background: #181920; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">[SYSTEM READY] UIDを入力して「UID自動取得」を押してください。</pre>
 
-            <!-- 取得したキャラクターカード選択エリア -->
-            <div id="character-selector" style="display: none; margin-top: 15px; background: #1c1e24; padding: 12px; border-radius: 8px;">
-                <h3 style="font-size: 0.95rem; color: #ffaa00; margin-bottom: 10px; margin-top:0;">▼ 読み込むエージェントを選択してください</h3>
+            <!-- 取得したキャラクターカード選択エリア (gencalc風) -->
+            <div id="character-selector" style="display: none; margin-top: 15px; border-top: 1px solid #3a3f4d; padding-top: 12px;">
+                <h3 style="font-size: 0.95rem; color: #ffaa00; margin-bottom: 10px; margin-top:0;">▼ 読み込むエージェントを選択してください（クリックで切替）</h3>
                 <div id="character-card-list" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
             </div>
         </div>
@@ -43,14 +42,14 @@
                 <div class="card">
                     <h2>エージェント設定</h2>
                     <div class="form-group">
-                        <label>プリセット選択</label>
+                        <label>プリセット / 特性</label>
                         <select id="agent-select" onchange="applyPreset()">
                             <option value="claretta">クラレッタ (電気/鋭御)</option>
                             <option value="jane">ジェーン (物理/異常)</option>
                             <option value="zhu_yuan">朱鳶 (エーテル/強攻)</option>
                             <option value="gigen">儀玄 (エーテル/命破)</option>
                         </select>
-                        <div id="role-display" class="role-badge">特性: 鋭御型</div>
+                        <div id="role-display" class="role-badge" style="margin-top: 8px; font-weight: bold; color: #ffaa00;">特性: 鋭御型</div>
                     </div>
                     
                     <div id="dynamic-inputs"></div>
@@ -145,7 +144,6 @@
         </div>
     </div>
 
-    <!-- 読み込み順序: api.js -> script.js -->
     <script src="api.js"></script>
     <script src="script.js"></script>
 </body>
