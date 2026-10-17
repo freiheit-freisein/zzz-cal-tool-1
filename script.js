@@ -1,5 +1,5 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール (gencalc風カード選択連動版)
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (ステータス確実連動・抽出修正版)
  */
 
 const AGENT_NAME_MAP = {
@@ -192,9 +192,6 @@ function getAgentName(char, index) {
     return char.name || char.Name || `エージェント ${index + 1}`;
 }
 
-/**
- * キャラクター選択カード一覧の描画 (gencalc風)
- */
 function renderCharacterSelector(characters) {
     fetchedCharacters = characters;
     const selectorBox = document.getElementById('character-selector');
@@ -235,21 +232,35 @@ function renderCharacterSelector(characters) {
     selectorBox.style.display = 'block';
 }
 
-function extractStatValue(obj, keys) {
-    if (!obj || typeof obj !== 'object') return 0;
-    for (const k of keys) {
-        if (obj[k] !== undefined && obj[k] !== null) {
-            const val = typeof obj[k] === 'object' ? (obj[k].value || obj[k].val || 0) : obj[k];
-            if (val) return parseFloat(val);
-        }
-    }
-    const subObjects = [obj.stats, obj.fightProp, obj.Properties, obj.property, obj.baseProperties];
-    for (const sub of subObjects) {
-        if (sub && typeof sub === 'object') {
-            for (const k of keys) {
-                if (sub[k] !== undefined && sub[k] !== null) {
-                    const val = typeof sub[k] === 'object' ? (sub[k].value || sub[k].val || 0) : sub[k];
-                    if (val) return parseFloat(val);
+/**
+ * Enka APIの多様な階層・キー名からステータス数値を安全に抽出する関数
+ */
+function extractStatValue(char, possibleKeys) {
+    if (!char || typeof char !== 'object') return 0;
+
+    // 1. キャラクター直下のオブジェクト（stats, fightProp, properties 等）を順次探索
+    const targets = [
+        char,
+        char.stats,
+        char.fightProp,
+        char.Properties,
+        char.property,
+        char.baseProperties,
+        char.propMap,
+        char.combatStats
+    ];
+
+    for (const target of targets) {
+        if (!target || typeof target !== 'object') continue;
+        for (const k of possibleKeys) {
+            if (target[k] !== undefined && target[k] !== null) {
+                const val = target[k];
+                if (typeof val === 'object') {
+                    const extracted = val.value ?? val.val ?? val.current ?? 0;
+                    if (extracted) return parseFloat(extracted);
+                } else if (typeof val === 'number' || typeof val === 'string') {
+                    const parsed = parseFloat(val);
+                    if (!isNaN(parsed)) return parsed;
                 }
             }
         }
@@ -258,12 +269,13 @@ function extractStatValue(obj, keys) {
 }
 
 /**
- * キャラクターカードをクリックしたときのフォーム＆ステータス連動処理
+ * キャラクターカードクリック時の処理：名前から特性自動判定 ＆ ステータスフォーム一括連動
  */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
     if (!char) return;
 
+    // 各種ステータスの抽出（Enka APIの様々なキー名パターンに対応）
     const atk = extractStatValue(char, ['atk', 'BASE_ATK', '1', 1, 'Atk', 'Attack']);
     const def = extractStatValue(char, ['def', 'BASE_DEF', '3', 3, 'Def', 'Defense']);
     const hp = extractStatValue(char, ['hp', 'BASE_HP', '2', 2, 'Hp', 'HP']);
@@ -271,7 +283,7 @@ function selectCharacter(index) {
     const cd = extractStatValue(char, ['critDmg', 'CRITICAL_HURT', '22', 22, 'CritDmg', 'crit_dmg']);
     const ap = extractStatValue(char, ['elementMastery', 'AP', '31', 31, 'AnomProf', 'anomalyProficiency']);
 
-    // キャラ名から自動でプリセット・特性を判定して切り替え
+    // キャラ名から自動でプリセット（特性）を切り替え
     const name = getAgentName(char, index);
     const agentSelect = document.getElementById('agent-select');
     if (agentSelect) {
@@ -279,9 +291,10 @@ function selectCharacter(index) {
         else if (name.includes('ジェーン') || name.includes('柳') || name.includes('バーニス')) agentSelect.value = 'jane';
         else if (name.includes('朱鳶') || name.includes('エレン')) agentSelect.value = 'zhu_yuan';
         else if (name.includes('儀玄')) agentSelect.value = 'gigen';
-        applyPreset(); // フォーム再構築
+        applyPreset(); // 特性に応じたフォーム項目を再構築
     }
 
+    // 抽出した数値をHTMLの入力フォームへそれぞれセット
     const atkEl = document.getElementById('base-atk');
     const defEl = document.getElementById('base-def');
     const hpEl = document.getElementById('base-hp');
@@ -296,7 +309,7 @@ function selectCharacter(index) {
     if (cdEl && cd) cdEl.value = (cd > 1 ? cd : cd * 100).toFixed(1);
     if (apEl && ap) apEl.value = Math.round(ap);
 
-    // カードのハイライト枠線切り替え
+    // 選択されたカードの枠線・背景色をハイライト
     const cards = document.querySelectorAll('#character-card-list .char-card');
     cards.forEach((c, i) => {
         if (i === index) {
@@ -310,6 +323,7 @@ function selectCharacter(index) {
         }
     });
 
+    // フォーム値の書き換えに伴いダメージ計算を即時実行
     calculateOptimal();
 }
 
@@ -370,21 +384,6 @@ function importJsonData() {
     } catch (err) {
         statusEl.innerText = err.message || err;
         statusEl.style.color = '#ff5555';
-    }
-}
-
-function exportCachedJson() {
-    const uid = document.getElementById('uid-input').value.trim();
-    const cachedRawText = localStorage.getItem(`zzz_raw_json_${uid}`);
-    if (!cachedRawText) {
-        alert('キャッシュされたデータがありません。先にUID自動取得を行ってください。');
-        return;
-    }
-    document.getElementById('json-box').style.display = 'block';
-    try {
-        document.getElementById('json-input').value = JSON.stringify(JSON.parse(cachedRawText), null, 2);
-    } catch(e) {
-        document.getElementById('json-input').value = cachedRawText;
     }
 }
 
