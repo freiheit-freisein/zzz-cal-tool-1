@@ -1,5 +1,5 @@
 /**
- * Enka API データ取得モジュール (ロリポップ中継 ＆ 深層パース完全対応版)
+ * Enka API データ取得モジュール (ロリポップ自前サーバー中継版)
  */
 const ZZZApi = {
     async fetchByUid(uid) {
@@ -8,12 +8,12 @@ const ZZZApi = {
         }
 
         let logHistory = [`[DEBUG] Target UID: ${uid}`];
-        const lolipopProxyUrl = `https://elel.hippy.jp/zzz/tool/proxy.php?uid=${encodeURIComponent(uid)}`;
 
         try {
-            logHistory.push(`[TRY] Fetching via Lolipop Server (elel.hippy.jp)...`);
+            logHistory.push(`[TRY] Fetching via Lolipop Server (proxy.php)...`);
             
-            const res = await fetch(lolipopProxyUrl);
+            // 同一ディレクトリ内の proxy.php へリクエスト送信
+            const res = await fetch(`proxy.php?uid=${encodeURIComponent(uid)}`);
             logHistory.push(`[Status] HTTP ${res.status}`);
 
             if (!res.ok) {
@@ -24,18 +24,19 @@ const ZZZApi = {
             let data;
             try {
                 data = JSON.parse(rawText);
-            } catch (err) {
-                throw new Error(`[ERR_INVALID_JSON] サーバーからの応答が有効なJSONではありません。`);
+            } catch (e) {
+                throw new Error(`JSONパース失敗: ${e.message}`);
             }
 
-            const parsedResult = this.deepParse(data, 'Lolipop Proxy Server', logHistory);
-            // パース成功データに生のJSON文字列を同梱する
-            parsedResult.rawText = rawText;
+            const parsedResult = this.deepParse(data, 'Lolipop Server Proxy (proxy.php)', logHistory);
+            parsedResult.rawText = rawText; // キャッシュ用の生テキストを保持
             return parsedResult;
 
         } catch (e) {
             logHistory.push(`[Error] ${e.message}`);
-            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nロリポップサーバーとの通信エラー。proxy.php の設置状況をご確認ください。`);
+            throw new Error(`【通信失敗】\n${logHistory.join('\n')}\n----------------------------------------\nproxy.php との通信に失敗しました。` +
+                            `\n・proxy.php が同じフォルダに置かれているか` +
+                            `\n・パーミッション設定に問題がないかご確認ください。`);
         }
     },
 
@@ -58,58 +59,44 @@ const ZZZApi = {
         logHistory.push(`[ROOT KEYS] [${rootKeys.join(', ')}]`);
 
         let charList = null;
-        const candidateKeys = [
-            'avatarInfoList', 'characters', 'avatarList', 'avatars',
-            'AvatarInfoList', 'Characters', 'AvatarList', 'Avatars', 'characterList'
-        ];
+        const possibleKeys = ['avatarInfoList', 'characters', 'avatarList', 'avatars', 'AvatarInfoList', 'Characters'];
 
-        // 1. 直下キーの探索
-        for (const key of candidateKeys) {
+        // 1. 直下キーの検索
+        for (const key of possibleKeys) {
             if (Array.isArray(data[key]) && data[key].length > 0) {
                 charList = data[key];
-                logHistory.push(`[MATCH] Root key: "${key}"`);
+                logHistory.push(`[MATCH] Found agents in root key: "${key}"`);
                 break;
             }
         }
 
-        // 2. PlayerInfo 内部の探索
+        // 2. PlayerInfo 内部の検索
         if (!charList) {
-            const pInfo = data.PlayerInfo || data.playerInfo || data.player_info;
+            const pInfo = data.PlayerInfo || data.playerInfo;
             if (pInfo && typeof pInfo === 'object') {
-                for (const key of candidateKeys) {
+                for (const key of possibleKeys) {
                     if (Array.isArray(pInfo[key]) && pInfo[key].length > 0) {
                         charList = pInfo[key];
-                        logHistory.push(`[MATCH] Inside PlayerInfo."${key}"`);
+                        logHistory.push(`[MATCH] Found agents inside PlayerInfo."${key}"`);
                         break;
                     }
                 }
             }
         }
 
-        // 3. 再帰的深層探索
+        // 3. 自動深層検索
         if (!charList) {
-            const findArrayRecursive = (obj, depth = 0) => {
-                if (!obj || typeof obj !== 'object' || depth > 4) return null;
-
-                for (const k in obj) {
-                    if (Array.isArray(obj[k]) && obj[k].length > 0) {
-                        if (typeof obj[k][0] === 'object' && obj[k][0] !== null) {
-                            logHistory.push(`[AUTO SCAN] Found array at depth ${depth} (key: "${k}")`);
-                            return obj[k];
-                        }
-                    } else if (typeof obj[k] === 'object' && obj[k] !== null) {
-                        const res = findArrayRecursive(obj[k], depth + 1);
-                        if (res) return res;
-                    }
+            for (const k in data) {
+                if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object') {
+                    charList = data[k];
+                    logHistory.push(`[AUTO SCAN] Found array in root["${k}"]`);
+                    break;
                 }
-                return null;
-            };
-
-            charList = findArrayRecursive(data);
+            }
         }
 
-        if (!charList || charList.length === 0) {
-            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nデータを受信しましたが、エージェント配列が見つかりませんでした。`);
+        if (!charList) {
+            throw new Error(`【構造パースエラー】\n${logHistory.join('\n')}\n----------------------------------------\nデータを受信しましたがエージェント配列が見つかりませんでした。`);
         }
 
         logHistory.push(`[SUCCESS] ${charList.length} 件のエージェントデータを抽出完了。`);
