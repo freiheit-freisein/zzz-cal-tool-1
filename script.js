@@ -1,5 +1,5 @@
 /**
- * ゼンゼロ ダメージ計算＆UI制御モジュール (要素存在チェック＆安全連動修正版)
+ * ゼンゼロ ダメージ計算＆UI制御モジュール (安全な要素存在チェック・全連動修正版)
  */
 
 const AGENT_NAME_MAP = {
@@ -8,7 +8,8 @@ const AGENT_NAME_MAP = {
     1111: 'リナ', 1121: 'エレン', 1131: '「11号」', 1141: '蒼角', 1151: '朱鳶',
     1161: '青衣', 1171: 'ジェーン', 1181: 'シーザー', 1191: 'バーニス', 1201: 'セス',
     1211: 'パイパー', 1221: 'ルーシー', 1231: '月城柳', 1241: '浅羽悠真', 1251: '星見雅',
-    1261: 'ライト', 1271: 'イヴリン', 1281: 'アストラ', 1291: 'クラレッタ', 1301: '儀玄'
+    1261: 'ライト', 1271: 'イヴリン', 1281: 'アストラ', 1291: 'クラレッタ', 1301: '儀玄',
+    1331: '浅羽悠真', 1401: '星見雅', 1411: '月城柳', 1521: 'アストラ', 1611: 'イヴリン'
 };
 
 const PRESETS = {
@@ -269,9 +270,6 @@ function extractStatValue(obj, keys) {
     return 0;
 }
 
-/**
- * キャラクターカードクリック時の処理：選択 ＆ 安全なフォーム連動
- */
 function selectCharacter(index) {
     const char = fetchedCharacters[index];
     if (!char) return;
@@ -284,7 +282,7 @@ function selectCharacter(index) {
         else if (name.includes('ジェーン') || name.includes('柳') || name.includes('バーニス')) agentSelect.value = 'jane';
         else if (name.includes('朱鳶') || name.includes('エレン')) agentSelect.value = 'zhu_yuan';
         else if (name.includes('儀玄')) agentSelect.value = 'gigen';
-        applyPreset(); // 特性に応じたフォーム項目（base-defやbase-atkなど）を再構築
+        applyPreset();
     }
 
     // 各種ステータスの抽出
@@ -295,7 +293,7 @@ function selectCharacter(index) {
     const cd = extractStatValue(char, ['critDmg', 'CRITICAL_HURT', '22', 22, 'CritDmg', 'crit_dmg']);
     const ap = extractStatValue(char, ['elementMastery', 'AP', '31', 31, 'AnomProf', 'anomalyProficiency']);
 
-    // 画面上に存在する入力欄だけに安全に数値をセット（存在しない場合はスキップ）
+    // 画面上に存在する入力欄だけに安全に数値をセット（存在しない要素を探して止まるのを防止）
     const atkEl = document.getElementById('base-atk');
     const defEl = document.getElementById('base-def');
     const hpEl = document.getElementById('base-hp');
@@ -310,7 +308,6 @@ function selectCharacter(index) {
     if (cdEl && cd) cdEl.value = (cd > 1 ? cd : cd * 100).toFixed(1);
     if (apEl && ap) apEl.value = Math.round(ap);
 
-    // 選択されたカードの枠線・背景色をハイライト
     const cards = document.querySelectorAll('#character-card-list .char-card');
     cards.forEach((c, i) => {
         if (i === index) {
